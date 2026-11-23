@@ -9758,7 +9758,9 @@ function bpCall(fl,P){ const L=fl.landed, Wa=fl.wallAt, S=fl.samples, last=S[S.l
   let tb=1; if(run(2)+0.6<t2) tb=2; if(tb===2 && run(3)+1.0<t3) tb=3;   /* DW 2026-11-23: more singles; extra bases only when he clearly beats the throw */
   let t=first; if(fl.la<10){ const s=S.find(q=>q.t>=first && Math.hypot(q.x,q.y)>=130); t=s?s.t:Math.max(first,Math.min(c.t,2)); }   /* a grounder: called once it is through the infield */
   return {call:['','SINGLE','DOUBLE','TRIPLE'][tb], t, tb, pos:f.pos}; }
-function bpShow(fl){ const b=fl.bp, col=b.hr?'var(--hr)':(b.out||b.foul)?'var(--foul)':'var(--play)';
+function bpShow(fl){ const b=fl.bp; clearTimeout(bpShow.t); bpShow.t=setTimeout(()=>{ resEl.className='result'; },1500);   /* DW 2026-11-23: the call never stays up over the next pitch */
+  if(b.hr){ resEl.className='result'; b.endAt=b.t+1.8; return; }   /* DW 2026-11-23: a home run is only announced (with the distance), not shown */
+  const col=b.hr?'var(--hr)':(b.out||b.foul)?'var(--foul)':'var(--play)';
   resEl.innerHTML=b.call+'<small>'+(b.hr?b.dist+' ft':[b.sub, b.pos?'to '+b.pos:'', fl.ev+' mph', fl.la+'° launch'].filter(Boolean).join(' · '))+'</small>';
   resEl.style.color=col; resEl.className='result show'; b.endAt=b.t+(b.hr?1.8:1.3); }
 function chStop(fl){ if(!fl || !fl.hr || fl.foul || typeof window.__chHit!=='function' || !fl.samples || fl.samples.length<3) return;
