@@ -1313,7 +1313,7 @@ function resolveContact(now){
     return; }
   // contact
   const bb = battedBall(p.result, d, S.batter); tsSwing('contact', bb);
-  const t=(now-ball.t0)/1000, pos=p.flight.at(Math.min(t,p.flight.T));
+  const t=(now-ball.t0)/1000, pos=p.flight.at(Math.min(t,ball.holdT!=null?ball.holdT:p.flight.T));
   if(!ball.done){ S.totalPitches++; if(p.result.isStrike) S.strikeCount++; }
   try{ pitchCallShow(!!p.result.isStrike, p.result); }catch(e){}
   ball.hit=true; ball.done=true; S.pitchInFlight=false; updateStats();
@@ -1605,9 +1605,9 @@ function frame(){
   if(ball){
     const t=(now-ball.t0)/1000;
     if(t>=0){
-      const f=ball.flight; ballPos = ball.hit ? null : f.at(t);
+      const f=ball.flight; ballPos = ball.hit ? null : f.at(ball.holdT!=null?Math.min(t,ball.holdT):t);
       if(ballPos) drawBallShadow(ballPos.X,liftY(ballPos.Y,ballPos.u),ballPos.Z);
-      if(t>=f.T && !ball.done && !ball.hit){ ball.done=true; onLanded(); }   /* DW 2026-11-22: lands even if the frame came late */
+      if(t>=f.T && !ball.done && !ball.hit && ball.holdT==null){ ball.done=true; onLanded(); }   /* DW 2026-11-22: lands even if the frame came late */
     }
   }
   const ballBehindBatter = ballPos && ballPos.Z > BATTER_FEET.Z+0.6;
@@ -15124,8 +15124,8 @@ window.__derbySetup=function(){ if(!DB.on || DB.setup) return; DB.setup=true; le
   window.__intro={done:true}; M.mode='cpuhit'; M.cpuSide=true; dbSave(); setTimeout(()=>{ try{ setUpBatter(false); dbHud(); if(DB.st.over) dbEnd(); }catch(e){} },50); };
 if(DB.on) window.__derbySetup();
 /* DW 2026-11-23: hitting-direction sliders for derby tests (saved as sbSprayTune; the game uses the same values) */
-const SPR_DEF={free:45, deg:45, noise:4, loc:4, pull:0, oppo:0};   /* DW 2026-11-23: pull%/oppo% no longer move the ball; it goes where the timing sends it */
-window.__SPR=Object.assign({},SPR_DEF); try{ Object.assign(window.__SPR, JSON.parse(LS('sbSprayTune')||'{}')||{}); }catch(e){} window.__SPR.pull=0; window.__SPR.oppo=0;
+const SPR_DEF={free:45, deg:65, noise:4, loc:4, pull:0, oppo:0};   /* DW 2026-11-23: pull%/oppo% no longer move the ball; it goes where the timing sends it */
+window.__SPR=Object.assign({},SPR_DEF); try{ Object.assign(window.__SPR, JSON.parse(LS('sbSprayTune')||'{}')||{}); }catch(e){} window.__SPR.pull=0; window.__SPR.oppo=0; if(window.__SPR.deg===45){ window.__SPR.deg=65; LS('sbSprayTune',JSON.stringify(window.__SPR)); }   /* DW 2026-11-23: still too hard to pull or push */
 { const _bb2=battedBall; battedBall=function(res,dMs){ const r=_bb2.apply(this,arguments); try{ window.__lastSw={dMs, spray:r&&r.spray, hand:HAND(), mis:r&&r.mishit, lt:window.__lastTiming, strike:!!(res&&res.isStrike)}; sprShow(); }catch(e){} return r; }; }
 function sprArea(sp,hand){ if(sp==null) return ''; const a=Math.abs(sp); if(a>45) return 'foul'; const pull=sp*hand>0, side=pull?'pull side':'opposite field'; return a<12?'up the middle':a>=34?side+', down the line':side+', gap'; }
 function sprShow(){ const el=$('sprBox'); if(!el) return; const S=window.__SPR, mid=Math.round(12/S.deg*100), line=Math.round(34/S.deg*100);
@@ -15208,7 +15208,7 @@ function bpQuit(){ const q=BP.st; if(!q) return; let w=$('teamPick'); if(w) w.re
    +'<div class="hsNote">Outs this session: ground out '+(q.go+(q.o1|0))+', fly out '+q.fo+', pop out '+q.po+', line out '+q.lo+', foul out '+q.fl+'. BP stats are kept apart from game stats. RP7 = 7 × SLG ÷ (1 − OBP); OBP = (hits + walks) ÷ (at bats + walks).</div>'
    +'<div class="hsGo"><button type="button" id="bpSave">Save BP stats</button><button type="button" class="sec" id="bpNoSave">Don\'t save</button><button type="button" class="sec" id="bpBack">Keep hitting</button></div></div>';
   document.body.appendChild(w); for(const ev of ['keydown','keyup','keypress']) w.addEventListener(ev,x=>x.stopPropagation());
-  const done=()=>{ LS('sbBpCur',null); BP.st=null; LS('sbGameType','game'); showHome('quit'); };
+  const done=()=>{ LS('sbBpCur',null); BP.st=null; showHome('quit'); };
   w.querySelector('#bpSave').onclick=()=>{ const all=bpCareer(), c=all[q.name]=all[q.name]||{sessions:0, long:0}; for(const k of BPK) c[k]=(c[k]|0)+(q[k]|0); c.long=Math.max(c.long|0,q.long|0); c.sessions++; c.lastAt=Date.now(); LS('sbBpStats',JSON.stringify(all)); done(); };
   w.querySelector('#bpNoSave').onclick=done; w.querySelector('#bpBack').onclick=()=>w.remove(); }
 window.__bpSetup=function(){ if(!BP.on||BP.setup) return; BP.setup=true; const p=dbPlayer(LS('sbBpBatter')||''), D=TEAMS.find(t=>t.name===LS('sbBpDefense'))||TEAMS[1];
@@ -15313,7 +15313,7 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
   const dirs=[...windSelect.options].filter(o=>!/city|random/.test(o.value)).map(o=>'<option value="'+o.value+'">'+esc(o.textContent)+'</option>').join('');
   const hrl=$('selHrLimit')?$('selHrLimit').innerHTML:'';
   const opt=(name,val,title,sub,on,dis)=>'<label class="hsOpt'+(on?' on':'')+(dis?' dis':'')+'"><input type="radio" name="'+name+'" value="'+val+'"'+(on?' checked':'')+'><span>'+title+(sub?'<small>'+sub+'</small>':'')+'</span></label>';
-  const curMode=LS('sbMode')||'cpu', gt=LS('sbGameType')||'game', dSel=(()=>{ try{ return JSON.parse(LS('sbDerbyPlayers')||'[]'); }catch(e){ return []; } })();
+  const curMode=LS('sbMode')||'cpu', gt=LS('sbGameType')||'derby', dSel=(()=>{ try{ return JSON.parse(LS('sbDerbyPlayers')||'[]'); }catch(e){ return []; } })();
   const plList=TEAMS.map(t=>'<h5>'+esc(t.name)+'</h5>'+t.lineup.map(p=>'<label><input type="checkbox" class="hsDP" value="'+esc(p.name)+'"'+(dSel.includes(p.name)?' checked':'')+'> '+esc(p.name)+'</label>').join('')).join('');
   w=D.createElement('div'); w.id='teamPick'; w.className='home';
   w.innerHTML='<div class="hsCard"><h1>Softball</h1><div class="hsSub">Pick how you want to play.</div>'
@@ -15377,6 +15377,10 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
   setTimeout(()=>{ try{ q('#hsPlay').focus(); }catch(e){} },50); }
 function release(){ if(!window.__homeHold) return; window.__homeHold=false; PB.timer=null; if(window.__homeIntro){ window.__homeIntro=0; if(!window.__derbyOn && !window.__bpOn) try{ introStart(); }catch(e){ console.error('intro',e); window.__intro={done:true}; } } }
 window.showHome=showHome;
+{ const _skL=swingKey; swingKey=function(type){ const r=_skL.apply(this,arguments); try{ const p=pendingResult; if(ball && !ball.done && !ball.hit && p && p.flight && S.swung){ const front=ball.t0+p.flight.tFront*1000, at=performance.now()+SWING_CONTACT_MS, d=at-front, win=HIT.missTimingMs*((SWINGS[type||'line']||SWINGS.line).win);
+      if(d>0 && d<=win && !(typeof wayOff==='function' && wayOff(p.result))){ const b=ball; b.holdT=p.flight.tFront; setTimeout(()=>{ if(!b.hit) b.holdT=null; }, d+400); } } }catch(e){} return r; }; }   /* DW 2026-11-23 */
+/* DW 2026-11-23 'We still need more pitches short and long': twice the short/deep misses, and more front/back-edge pitches */
+try{ EDGE_DEPTH.far=1.0; EDGE_DEPTH.base=0.15; }catch(e){}
 setTimeout(function hd(){ try{ const ov=$('btnOvl'); if(!ov){ setTimeout(hd,500); return; } if($('btnHitDir')) return; const b=document.createElement('button'); b.id='btnHitDir'; b.type='button'; b.className=ov.className;
   const show=()=>{ const el=$('sprBox'), on=!!LS('sbSprShow'); if(el) el.style.display=on?'':'none'; b.textContent=on?'Hide hitting direction':'Hitting direction'; };
   b.onclick=e=>{ LS('sbSprShow',LS('sbSprShow')?null:'1'); show(); e.target.blur(); }; ov.after(b); show();
