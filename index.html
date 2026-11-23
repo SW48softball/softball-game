@@ -12,6 +12,9 @@ addEventListener('keydown',function(e){ if(e.code!=='Space' && e.key!==' ') retu
   addEventListener('pointerup',function(e){ if(!d) return; const m=Math.hypot(e.clientX-d[0],e.clientY-d[1]); d=null; if(m<6 && window.__paused && window.__setPaused) setTimeout(()=>window.__setPaused(false),0); },true); })();
 if(window.__derbyOn) document.documentElement.classList.add('derbyOn');
 if(window.__bpOn) document.documentElement.classList.add('bpOn');
+try{ const m=/[?&]owner=([^&]+)/.exec(location.search); if(m){ if(m[1]==='sw48') localStorage.setItem('sbOwner','1'); else localStorage.removeItem('sbOwner'); } }catch(e){}
+window.__owner=(function(){ try{ if(localStorage.getItem('sbOwner')==='1') return true; }catch(e){} return !/github\.io$/i.test(location.hostname||''); })();
+if(window.__owner) document.documentElement.classList.add('owner');
 </script>
 <title>Night Pitching Sandbox</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -9752,7 +9755,7 @@ function bpCall(fl,P){ const L=fl.landed, Wa=fl.wallAt, S=fl.samples, last=S[S.l
     return out?{call:fl.la<15?'GROUND OUT':'OUT AT 1ST', t:tB, out:1, pos:f.pos}:{call:'SINGLE', sub:'infield hit', t:Math.max(c.t,Math.min(tB,tR)), tb:1, pos:f.pos}; }
   const reach=hold+0.3, arm=armSpeed(f), d2=Math.hypot(c.x-BASEXY[2][0],c.y-BASEXY[2][1]), d3=Math.hypot(c.x-BASEXY[3][0],c.y-BASEXY[3][1]);
   const t2=reach+d2/arm+(d2>230?0.5:0), t3=reach+d3/arm+(d3>210?0.5:0);   /* a long throw goes through the cutoff man */
-  let tb=1; if(run(2)+0.25<t2) tb=2; if(tb===2 && run(3)+0.25<t3) tb=3;
+  let tb=1; if(run(2)+0.6<t2) tb=2; if(tb===2 && run(3)+1.0<t3) tb=3;   /* DW 2026-11-23: more singles; extra bases only when he clearly beats the throw */
   let t=first; if(fl.la<10){ const s=S.find(q=>q.t>=first && Math.hypot(q.x,q.y)>=130); t=s?s.t:Math.max(first,Math.min(c.t,2)); }   /* a grounder: called once it is through the infield */
   return {call:['','SINGLE','DOUBLE','TRIPLE'][tb], t, tb, pos:f.pos}; }
 function bpShow(fl){ const b=fl.bp, col=b.hr?'var(--hr)':(b.out||b.foul)?'var(--foul)':'var(--play)';
@@ -14986,14 +14989,17 @@ html.derbyOn .scbug,html.derbyOn #nowBat,html.derbyOn #teamBox,html.derbyOn #hud
 #sprBox.min .sprBody{display:none}#sprBox label{display:block;margin-top:6px}#sprBox label span{display:flex;justify-content:space-between}#sprBox label i{font-style:normal;color:#ffe600;font-weight:700}
 #sprBox input[type=range]{width:100%;margin:2px 0 0}#sprBox .sprAreas{margin-top:7px;line-height:1.4;opacity:.9}#sprBox .sprAreas b,#sprBox .sprLast b{color:#ffe600}#sprBox .sprLast{margin-top:5px;line-height:1.4}
 #sprBox .sprReset{margin-top:7px;font:600 12px Inter,system-ui,sans-serif;padding:3px 9px;border-radius:6px;border:1px solid #3d6a99;background:#122133;color:#eef3f1;cursor:pointer}
-#bpHud{position:fixed;right:14px;bottom:14px;z-index:40;width:330px;cursor:move;touch-action:none;user-select:none;background:rgba(8,14,22,.88);border:1px solid #3d9a5a;border-radius:10px;padding:8px 12px;color:#eef3f1;font:500 13px Inter,system-ui,sans-serif;pointer-events:auto}
+#bpHud{position:fixed;right:14px;bottom:14px;z-index:40;width:360px;cursor:move;touch-action:none;user-select:none;background:rgba(8,14,22,.88);border:1px solid #3d9a5a;border-radius:10px;padding:8px 12px;color:#eef3f1;font:500 13px Inter,system-ui,sans-serif;pointer-events:auto}
 #bpHud.lefty{right:auto;left:14px}
 #bpHud h3{margin:0 0 2px;font:700 20px 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.08em;color:#7fe0a0}
 #bpHud .now{font:700 21px 'Barlow Condensed',system-ui,sans-serif}#bpHud .sub{opacity:.75;font-size:12px}
 #bpHud .big3{display:flex;gap:14px;margin:5px 0 2px}#bpHud .big3 span{font:700 26px 'Barlow Condensed',system-ui,sans-serif;color:#ffe600;line-height:1}#bpHud .big3 i{display:block;font:600 11px Inter,system-ui,sans-serif;color:#9fc3e8;font-style:normal;letter-spacing:.06em}
+#bpHud .bpT{border-collapse:collapse;margin:4px 0 2px;width:100%}#bpHud .bpT th{font:600 11px Inter,system-ui,sans-serif;color:#9fc3e8;text-align:center;padding:0 2px}#bpHud .bpT td{font:700 17px 'Barlow Condensed',system-ui,sans-serif;text-align:center;color:#fff}
 #bpHud .st{margin-top:4px;line-height:1.5}#bpHud .st b,#bpHud .last b{color:#ffe600}#bpHud .last{margin-top:4px}
 #bpHud .dbBtns{margin-top:7px;text-align:right}#bpHud .dbBtns button{font:700 13px Inter,system-ui,sans-serif;padding:4px 12px;border-radius:6px;border:1px solid #c94040;background:#2a1414;color:#ffb0b0;cursor:pointer}
 html.bpOn .scbug,html.bpOn #nowBat,html.bpOn #teamBox,html.bpOn #hudCount,html.bpOn #gameSS,html.bpOn #modeChip,html.bpOn #throwTo,html.bpOn #lastHit{display:none!important}   /* DW: no scoreboard in batting practice */
+html:not(.owner) #btnOvl,html:not(.owner) #btnHitDir,html:not(.owner) #btnTestStats,html:not(.owner) #btnStadium,html:not(.owner) #btnRec,html:not(.owner) #btnRecBat,html:not(.owner) #btnReplayRec,html:not(.owner) #sprBox,html:not(.owner) #errFlash,html:not(.owner) #errList,html:not(.owner) .ownerOnly{display:none!important}   /* DW 2026-11-23: only DW touches these */
+#pitchCall{top:4px!important}   /* DW 2026-11-23: the ball/strike call sits at the very top, off the next pitch */
 #teamPick .dbChamp{font:800 30px 'Barlow Condensed',system-ui,sans-serif;color:#fff;margin:6px 0 2px;letter-spacing:.02em}
 #modeChip{position:fixed;left:50%;transform:translateX(-50%);bottom:4px;opacity:.85;z-index:30;font:600 12px Inter,system-ui,sans-serif;background:rgba(10,16,24,.72);color:#cfe0f0;border:1px solid #2d4258;border-radius:7px;padding:3px 8px;pointer-events:none}
 </style>
@@ -15118,12 +15124,12 @@ if(DB.on) window.__derbySetup();
 /* DW 2026-11-23: hitting-direction sliders for derby tests (saved as sbSprayTune; the game uses the same values) */
 const SPR_DEF={free:45, deg:45, noise:4, loc:4, pull:0, oppo:0};   /* DW 2026-11-23: pull%/oppo% no longer move the ball; it goes where the timing sends it */
 window.__SPR=Object.assign({},SPR_DEF); try{ Object.assign(window.__SPR, JSON.parse(LS('sbSprayTune')||'{}')||{}); }catch(e){} window.__SPR.pull=0; window.__SPR.oppo=0;
-if(DB.on||window.__bpOn){ const _bb2=battedBall; battedBall=function(res,dMs){ const r=_bb2.apply(this,arguments); try{ window.__lastSw={dMs, spray:r&&r.spray, hand:HAND(), mis:r&&r.mishit, lt:window.__lastTiming, strike:!!(res&&res.isStrike)}; sprShow(); }catch(e){} return r; }; }
+{ const _bb2=battedBall; battedBall=function(res,dMs){ const r=_bb2.apply(this,arguments); try{ window.__lastSw={dMs, spray:r&&r.spray, hand:HAND(), mis:r&&r.mishit, lt:window.__lastTiming, strike:!!(res&&res.isStrike)}; sprShow(); }catch(e){} return r; }; }
 function sprArea(sp,hand){ if(sp==null) return ''; const a=Math.abs(sp); if(a>45) return 'foul'; const pull=sp*hand>0, side=pull?'pull side':'opposite field'; return a<12?'up the middle':a>=34?side+', down the line':side+', gap'; }
 function sprShow(){ const el=$('sprBox'); if(!el) return; const S=window.__SPR, mid=Math.round(12/S.deg*100), line=Math.round(34/S.deg*100);
   el.querySelector('.sprAreas').innerHTML='For a middle strike: on time within <b>'+mid+' ms</b> = up the middle. Early more than '+mid+' ms = <b>pull side</b>, late more than '+mid+' ms = <b>opposite field</b>. More than <b>'+line+' ms</b> either way = toward the line.';
   const L=window.__lastSw; el.querySelector('.sprLast').innerHTML=L?'Last swing: <b>'+(L.lt?L.lt.lbl[0].toUpperCase()+L.lt.lbl.slice(1)+'</b> for '+(L.strike?(Math.abs(L.lt.ins)<3?'a middle strike':L.lt.ins>0?'an inside strike':'an outside strike'):'a ball')+' · <b>':'<b>')+Math.abs(Math.round(L.dMs))+' ms '+(L.dMs<0?'early':'late')+'</b> → '+sprArea(L.spray,L.hand)+' ('+Math.round(Math.abs(L.spray))+'°'+(L.mis?', '+L.mis:'')+')':'Last swing: -'; }
-if(DB.on||window.__bpOn) setTimeout(()=>{ const el=document.createElement('div'); el.id='sprBox';
+setTimeout(()=>{ const el=document.createElement('div'); el.id='sprBox'; el.style.display=LS('sbSprShow')?'':'none';
   const rows=[['free','Square-up window (each way)',0,120,5,v=>v+' ms','Early or late by less than this still counts as on time for how hard it is hit.'],
     ['deg','Early/late turns the ball',10,90,1,v=>v+'° per 0.1 s','Early = pull, late = push. Bigger = the same timing goes farther toward the lines.'],
     ['noise','Random spread',0,15,0.5,v=>'± '+v+'°','How far a ball can stray from where the timing sends it.'],
@@ -15145,7 +15151,7 @@ if(DB.on||window.__bpOn) setTimeout(()=>{ const el=document.createElement('div')
   const end=()=>{ if(!dr) return; dr=null; LS('sbSprXY',JSON.stringify([parseFloat(el.style.left)/innerWidth, parseFloat(el.style.top)/innerHeight])); };
   hd.addEventListener('pointerup',end); hd.addEventListener('pointercancel',end); hd.addEventListener('dblclick',()=>{ LS('sbSprXY',null); put(); }); addEventListener('resize',put); put(); },300);
 
-if(DB.on||window.__bpOn) (function resSetup(){ const fr=$('field3d'), sr=fr&&fr.shadowRoot, rs=sr&&sr.getElementById('result'); if(!rs){ setTimeout(resSetup,500); return; } { const sty=document.createElement('style'); sty.textContent='#result{top:30%;background:rgba(5,9,14,.82);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 16px 9px;cursor:move;touch-action:none;user-select:none;text-shadow:none}#result.show{pointer-events:auto}'; sr.appendChild(sty);   /* DW 2026-11-23: lower, on a dark plate, draggable (it lives inside the park view) */ const K='sbDerbyResXY', put=()=>{ let xy=null; try{ xy=JSON.parse(LS(K)||'null'); }catch(e){} if(xy){ rs.style.left=(xy[0]*innerWidth)+'px'; rs.style.top=(xy[1]*innerHeight)+'px'; } else { rs.style.left=rs.style.top=''; } };
+if(DB.on||window.__bpOn) (function resSetup(){ const fr=$('field3d'), sr=fr&&fr.shadowRoot, rs=sr&&sr.getElementById('result'); if(!rs){ setTimeout(resSetup,500); return; } { const sty=document.createElement('style'); sty.textContent='#result{top:'+(window.__bpOn?'88%':'30%')+';background:rgba(5,9,14,.82);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 16px 9px;cursor:move;touch-action:none;user-select:none;text-shadow:none}#result.show{pointer-events:auto}'; sr.appendChild(sty);   /* DW 2026-11-23: lower, on a dark plate, draggable (it lives inside the park view) */ const K=window.__bpOn?'sbBpResXY':'sbDerbyResXY', put=()=>{ let xy=null; try{ xy=JSON.parse(LS(K)||'null'); }catch(e){} if(xy){ rs.style.left=(xy[0]*innerWidth)+'px'; rs.style.top=(xy[1]*innerHeight)+'px'; } else { rs.style.left=rs.style.top=''; } };
     let dr=null; rs.addEventListener('pointerdown',e=>{ const r=rs.getBoundingClientRect(); dr={dx:e.clientX-(r.left+r.width/2), dy:e.clientY-(r.top+r.height/2)}; rs.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); });
     rs.addEventListener('pointermove',e=>{ if(!dr) return; rs.style.left=Math.max(40,Math.min(innerWidth-40,e.clientX-dr.dx))+'px'; rs.style.top=Math.max(30,Math.min(innerHeight-30,e.clientY-dr.dy))+'px'; });
     const end=()=>{ if(!dr) return; dr=null; LS(K,JSON.stringify([parseFloat(rs.style.left)/innerWidth, parseFloat(rs.style.top)/innerHeight])); };
@@ -15171,31 +15177,33 @@ if(DB.on){ const _kr=knuckleRate; knuckleRate=function(){ return DB.on?0:_kr.app
    (Strike-Mid every pitch). Each ball gets one call (Flyout, Popout, Foul out, Ground out, Single, Double, Triple, Home run and how far), then straight
    back to the plate for the next pitch. No scoreboard, no other announcing. Stats add up for the session; Quit BP offers to save them. */
 const BP={ on:!!window.__bpOn, st:null, cur:null, swung:null, contact:null, strike:null, idle:0, say:false };
-function bpNew(){ return {name:'', def:'', real:false, pitches:0, takes:0, swings:0, swk:0, miss:0, fouls:0, ab:0, h:0, b1:0, b2:0, b3:0, hr:0, go:0, fo:0, po:0, lo:0, fl:0, o1:0, hd:0, long:0, last:'', t0:Date.now()}; }
-function bpLine(q){ const ab=q.ab|0, tb=(q.b1|0)+2*(q.b2|0)+3*(q.b3|0)+4*(q.hr|0), avg=ab?q.h/ab:NaN, slg=ab?tb/ab:NaN, obp=avg;   /* no walks in BP: on base = hits */
-  const f3=v=>isFinite(v)?v.toFixed(3).replace(/^0(?=\.)/,''):'-'; return {avg:f3(avg), obp:f3(obp), slg:f3(slg), rp7:(ab&&obp<1)?(7*slg/(1-obp)).toFixed(1):'-', tb}; }
+function bpNew(){ return {name:'', def:'', real:false, pitches:0, takes:0, swings:0, swk:0, miss:0, fouls:0, ab:0, h:0, bb:0, k:0, b1:0, b2:0, b3:0, hr:0, go:0, fo:0, po:0, lo:0, fl:0, o1:0, hd:0, long:0, last:'', t0:Date.now()}; }
+function bpLine(q){ const ab=q.ab|0, tb=(q.b1|0)+2*(q.b2|0)+3*(q.b3|0)+4*(q.hr|0), avg=ab?q.h/ab:NaN, slg=ab?tb/ab:NaN, pa=ab+(q.bb|0), obp=pa?((q.h|0)+(q.bb|0))/pa:NaN;   /* DW 2026-11-23: walks count in BP */
+  const f3=v=>isFinite(v)?v.toFixed(3).replace(/^0(?=\.)/,''):'-'; return {avg:f3(avg), obp:f3(obp), slg:f3(slg), rp7:(ab&&pa&&obp<1)?(7*slg/(1-obp)).toFixed(1):'-', tb}; }
 function bpSaveCur(){ if(BP.st) LS('sbBpCur',JSON.stringify(BP.st)); }
 function bpLefty(){ try{ return HITTER.hand>0; }catch(e){ return false; } }
 function bpHud(){ if(!BP.on||!BP.st) return; let h=$('bpHud'); if(!h){ h=document.createElement('div'); h.id='bpHud'; h.className='bpBox'; document.body.appendChild(h); dbDrag(h); }
   h.classList.toggle('lefty', bpLefty()); dbPlace(h); const q=BP.st, L=bpLine(q), y=v=>'<b>'+v+'</b>';
   h.innerHTML='<h3>BATTING PRACTICE</h3><div class="now">'+q.name+'</div><div class="sub">vs '+q.def+' defense · '+(q.real?'real pitching':'BP pitching (Strike-Mid)')+'</div>'
-   +'<div class="big3"><span><i>AVG</i>'+L.avg+'</span><span><i>SLG</i>'+L.slg+'</span><span><i>RP7</i>'+L.rp7+'</span></div>'
-   +'<div class="st">AB '+y(q.ab)+' · H '+y(q.h)+' · 1B '+y(q.b1)+' · 2B '+y(q.b2)+' · 3B '+y(q.b3)+' · HR '+y(q.hr)
-   +'<br>Ground out '+y(q.go+(q.o1|0))+' · Fly out '+y(q.fo)+' · Pop out '+y(q.po)+' · Line out '+y(q.lo)+' · Foul out '+y(q.fl)
-   +'<br>Pitches '+y(q.pitches)+' · Swings '+y(q.swings)+' · Misses '+y(q.miss)+' · Fouls '+y(q.fouls)+' · Takes '+y(q.takes)
+   +'<div class="big3"><span><i>AVG</i>'+L.avg+'</span><span><i>OB%</i>'+L.obp+'</span><span><i>SLG</i>'+L.slg+'</span><span><i>RP7</i>'+L.rp7+'</span></div>'
+   +'<table class="bpT"><tr><th>OB</th><th>PA</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>BB</th><th>K</th></tr><tr>'+[(q.h|0)+(q.bb|0),(q.ab|0)+(q.bb|0),q.h|0,q.b1|0,q.b2|0,q.b3|0,q.hr|0,q.bb|0,q.k|0].map(v=>'<td>'+v+'</td>').join('')+'</tr></table>'
+   +'<div class="st">Strikes hit '+y(q.swings?Math.round(100*(q.swk|0)/q.swings)+'%':'-')+' ('+(q.swk|0)+' of '+(q.swings|0)+' swings) · AVG on strikes '+y(bpAvg(q.hS,q.abS))+' · AVG on balls '+y(bpAvg(q.hB,q.abB))
+   +'<br>Ground out '+y((q.go|0)+(q.o1|0))+' · Fly out '+y(q.fo|0)+' · Pop out '+y(q.po|0)+' · Line out '+y(q.lo|0)+' · Foul out '+y(q.fl|0)
+   +'<br>Count '+y((S.balls|0)+'-'+(S.strikes|0))+' · Pitches '+y(q.pitches)+' · Swings '+y(q.swings)+' · Misses '+y(q.miss)+' · Fouls '+y(q.fouls)+' · Takes '+y(q.takes)
    +'<br>Avg HR '+y(q.hr?Math.round(q.hd/q.hr)+' ft':'-')+' · Longest '+y(q.long?q.long+' ft':'-')+'</div>'
    +'<div class="last">'+(q.last?'Last: <b>'+q.last+'</b>':'')+'</div>'
    +'<div class="dbBtns"><button type="button" id="bpQuit">Quit BP</button></div>';
   h.querySelector('#bpQuit').onclick=e=>{ e.stopPropagation(); bpQuit(); }; }
+function bpAvg(h,ab){ ab=ab|0; return ab?((h|0)/ab).toFixed(3).replace(/^0(?=\.)/,''):'-'; }
 function bpCareer(){ try{ return JSON.parse(LS('sbBpStats')||'{}')||{}; }catch(e){ return {}; } }
-const BPK=['pitches','takes','swings','swk','miss','fouls','ab','h','b1','b2','b3','hr','go','fo','po','lo','fl','o1','hd'];
+const BPK=['pitches','takes','swings','swk','miss','fouls','ab','h','bb','k','abS','hS','abB','hB','b1','b2','b3','hr','go','fo','po','lo','fl','o1','hd'];
 function bpQuit(){ const q=BP.st; if(!q) return; let w=$('teamPick'); if(w) w.remove(); w=document.createElement('div'); w.id='teamPick'; w.className='home';
   const C=bpCareer()[q.name], L=bpLine(q), cl=C?bpLine(C):null, td='<td style="text-align:right;padding:3px 6px">';
-  const row=(lab,o,l)=>'<tr style="border-top:1px solid #24364a"><td style="padding:4px">'+lab+'</td>'+td+o.ab+'</td>'+td+o.h+'</td>'+td+o.b2+'</td>'+td+o.b3+'</td>'+td+o.hr+'</td>'+td+l.avg+'</td>'+td+l.slg+'</td>'+td+'<b style="color:#ffe600">'+l.rp7+'</b></td>'+td+(o.hr?Math.round(o.hd/o.hr)+' ft':'-')+'</td>'+td+(o.long?o.long+' ft':'-')+'</td></tr>';
-  const th='<tr style="color:#9fc3e8;font:600 13px Inter,system-ui,sans-serif"><td></td>'+['AB','H','2B','3B','HR','AVG','SLG','RP7','Avg HR','Longest'].map(x=>td+x+'</td>').join('')+'</tr>';
+  const row=(lab,o,l)=>'<tr style="border-top:1px solid #24364a"><td style="padding:4px">'+lab+'</td>'+td+((o.ab|0)+(o.bb|0))+'</td>'+td+o.ab+'</td>'+td+o.h+'</td>'+td+o.b2+'</td>'+td+o.b3+'</td>'+td+o.hr+'</td>'+td+(o.bb|0)+'</td>'+td+(o.k|0)+'</td>'+td+l.avg+'</td>'+td+l.obp+'</td>'+td+l.slg+'</td>'+td+'<b style="color:#ffe600">'+l.rp7+'</b></td>'+td+(o.swings?Math.round(100*(o.swk|0)/o.swings)+'%':'-')+'</td>'+td+bpAvg(o.hS,o.abS)+'</td>'+td+bpAvg(o.hB,o.abB)+'</td>'+td+(o.hr?Math.round(o.hd/o.hr)+' ft':'-')+'</td>'+td+(o.long?o.long+' ft':'-')+'</td></tr>';
+  const th='<tr style="color:#9fc3e8;font:600 13px Inter,system-ui,sans-serif"><td></td>'+['PA','AB','H','2B','3B','HR','BB','K','AVG','OB%','SLG','RP7','Strikes hit','AVG strikes','AVG balls','Avg HR','Longest'].map(x=>td+x+'</td>').join('')+'</tr>';
   w.innerHTML='<div class="hsCard"><h1>Batting Practice</h1><div class="dbChamp">'+q.name+'</div><div class="hsSub">vs '+q.def+' defense · '+(q.real?'real pitching':'BP pitching')+' · '+q.pitches+' pitches, '+q.swings+' swings, '+q.miss+' misses, '+q.fouls+' fouls, '+q.takes+' takes</div>'
    +'<table style="width:100%;font:500 15px Inter,system-ui,sans-serif;border-collapse:collapse">'+th+row('This session',q,L)+(C?row('Saved BP total',C,cl):'')+'</table>'
-   +'<div class="hsNote">Outs this session: ground out '+(q.go+(q.o1|0))+', fly out '+q.fo+', pop out '+q.po+', line out '+q.lo+', foul out '+q.fl+'. BP stats are kept apart from game stats. RP7 = 7 × SLG ÷ (1 − OBP); in BP there are no walks, so OBP is hits ÷ at bats.</div>'
+   +'<div class="hsNote">Outs this session: ground out '+(q.go+(q.o1|0))+', fly out '+q.fo+', pop out '+q.po+', line out '+q.lo+', foul out '+q.fl+'. BP stats are kept apart from game stats. RP7 = 7 × SLG ÷ (1 − OBP); OBP = (hits + walks) ÷ (at bats + walks).</div>'
    +'<div class="hsGo"><button type="button" id="bpSave">Save BP stats</button><button type="button" class="sec" id="bpNoSave">Don\'t save</button><button type="button" class="sec" id="bpBack">Keep hitting</button></div></div>';
   document.body.appendChild(w); for(const ev of ['keydown','keyup','keypress']) w.addEventListener(ev,x=>x.stopPropagation());
   const done=()=>{ LS('sbBpCur',null); BP.st=null; LS('sbGameType','game'); showHome('quit'); };
@@ -15204,25 +15212,29 @@ function bpQuit(){ const q=BP.st; if(!q) return; let w=$('teamPick'); if(w) w.re
 window.__bpSetup=function(){ if(!BP.on||BP.setup) return; BP.setup=true; const p=dbPlayer(LS('sbBpBatter')||''), D=TEAMS.find(t=>t.name===LS('sbBpDefense'))||TEAMS[1];
   if(!p){ BP.on=false; window.__bpOn=false; LS('sbGameType','game'); return; }
   try{ BP.st=JSON.parse(LS('sbBpCur')||'null'); }catch(e){} if(!BP.st||BP.st.name!==p.name||BP.st.def!==D.name) BP.st=Object.assign(bpNew(),{name:p.name, def:D.name}); BP.st.real=LS('sbBpPitch')==='real';
-  S.half=D===TEAMS[0]?1:0; batTeam().lineup=[p]; applySides(); S.order=0; S.outs=0; S.bases=[null,null,null,null]; S.balls=0; S.strikes=0; S.hrs=0; HR_LIMIT=0;
+  S.half=D===TEAMS[0]?1:0; batTeam().lineup=[p]; applySides(); S.order=0; S.outs=0; S.bases=[null,null,null,null]; S.balls=1; S.strikes=1; S.hrs=0; HR_LIMIT=0;
   window.__intro={done:true}; M.mode='cpuhit'; M.cpuSide=true; AUTOPITCH=false; window.__autoDef=true; bpSaveCur();
   setTimeout(()=>{ try{ setUpBatter(false); renderCount(); bpHud(); }catch(e){ console.error('bp',e); } },50); };
 if(BP.on){ window.__bpSetup();
   const _kr=knuckleRate; knuckleRate=function(){ return (BP.on&&BP.st&&!BP.st.real)?0:_kr.apply(this,arguments); };   /* BP pitching: a tumbler */
   const _ap=autoPick; autoPick=function(){ const z=_ap.apply(this,arguments); return (BP.on&&BP.st&&!BP.st.real)?2:z; };   /* BP pitching: Strike-Mid every pitch (his normal misses still happen) */
   const _sk=swingKey; swingKey=function(){ if(ball && !ball.done) BP.swung=ball; return _sk.apply(this,arguments); };
-  const _bb=battedBall; battedBall=function(){ const r=_bb.apply(this,arguments); BP.contact=ball; return r; };
+  const _bb=battedBall; battedBall=function(res){ const r=_bb.apply(this,arguments); BP.contact=ball; BP.hitStrike=!!(res&&res.isStrike); return r; };
   const _say=ANN.say; ANN.say=function(){ if(BP.on && !BP.say) return; return _say.apply(this,arguments); };   /* no announcing except the calls */
-  const _nb=newBatter; newBatter=function(){ if(!BP.on) return _nb.apply(this,arguments); S.paText=null; S.balls=0; S.strikes=0; S.outs=0; S.bases=[null,null,null,null]; S.paPitches=0; try{ renderCount(); }catch(e){} };
+  const _wb=walkBatter; walkBatter=function(){ if(!BP.on) return _wb.apply(this,arguments); bpPA('bb','Walk','Ball four, walk.'); };
+  const _ks=strikeoutStat; strikeoutStat=function(){ if(!BP.on) return _ks.apply(this,arguments); bpPA('k','Strikeout','Strikeout.'); };
+  const _nb=newBatter; newBatter=function(){ if(!BP.on) return _nb.apply(this,arguments); S.paText=null; S.balls=1; S.strikes=1; S.outs=0; S.bases=[null,null,null,null]; S.paPitches=0; try{ renderCount(); }catch(e){} };
   const _fp=finishPlay; finishPlay=function(res,bb){ if(!BP.on) return _fp.apply(this,arguments);
     S.batted=null; S.battedPos=null; S.playing=false; ball=null; try{ bpRecord(res||{},bb||{}); }catch(e){ console.error('bp',e); }
-    S.paText=null; S.outs=0; S.bases=[null,null,null,null]; S.balls=0; S.strikes=0; S.paPitches=0; try{ renderCount(); }catch(e){} };
+    S.paText=null; S.outs=0; S.bases=[null,null,null,null]; if(!BP.keepCount){ S.balls=1; S.strikes=1; S.paPitches=0; } BP.keepCount=false; try{ renderCount(); }catch(e){} bpHud(); };
   setInterval(()=>{ try{ bpTick(); }catch(e){ console.error('bp',e); } },100); }
+function bpPA(k,txt,say){ const q=BP.st; if(!q) return; q[k]=(q[k]|0)+1; q.last=txt; BP.paDone=true; setTimeout(()=>{ BP.say=true; try{ ANN.say(say, true); }catch(e){} BP.say=false; },60); bpSaveCur(); bpHud(); }
 function bpCallOf(res){ if(res.bp) return res.bp; if(res.foulCatch) return {call:'FOUL OUT',out:1}; if(res.foul) return {call:'FOUL BALL',foul:1}; if(res.hr) return {call:'HOME RUN',hr:1,dist:res.dist};
   if(res.caught) return {call:'FLY OUT',out:1}; if(res.outAt1st) return {call:'GROUND OUT',out:1}; if(res.grd) return {call:'DOUBLE',tb:2}; return {call:'SINGLE',tb:1}; }
 function bpRecord(res,bb){ const c=bpCallOf(res), q=BP.st; if(!q) return; const nice=c.call.charAt(0)+c.call.slice(1).toLowerCase();
-  if(c.foul){ q.fouls++; q.last='Foul ball'; }
-  else { q.ab++; if(c.out){ const k={'GROUND OUT':'go','OUT AT 1ST':'o1','FLY OUT':'fo','POP OUT':'po','LINE OUT':'lo','FOUL OUT':'fl'}[c.call]||'go'; q[k]=(q[k]|0)+1; }
+  if(c.foul && (S.strikes|0)>=2){ c.foul=0; c.out=1; c.call='FOUL OUT'; }
+  if(c.foul){ q.fouls++; q.last='Foul ball'; BP.keepCount=true; S.strikes=(S.strikes|0)+1; }
+  else { q.ab++; const onK=!!BP.hitStrike; if(onK) q.abS=(q.abS|0)+1; else q.abB=(q.abB|0)+1; if(!c.out){ if(onK) q.hS=(q.hS|0)+1; else q.hB=(q.hB|0)+1; } if(c.out){ const k={'GROUND OUT':'go','OUT AT 1ST':'o1','FLY OUT':'fo','POP OUT':'po','LINE OUT':'lo','FOUL OUT':'fl'}[c.call]||'go'; q[k]=(q[k]|0)+1; }
     else { q.h++; const tb=c.hr?4:(c.tb|0)||1; q[['','b1','b2','b3','hr'][tb]]++; if(c.hr){ const ft=c.dist|0; q.hd+=ft; q.long=Math.max(q.long|0,ft); } }
     q.last=c.hr?'Home run, '+(c.dist|0)+' ft':nice+(c.sub?' ('+c.sub+')':'');
     BP.say=true; try{ ANN.say(c.hr?'Home run, '+(c.dist|0)+' feet.':nice+'.', true); }catch(e){} BP.say=false; }
@@ -15232,12 +15244,14 @@ function bpTick(){ if(!BP.on||!BP.st) return; window.__autoDef=true; AUTOPITCH=f
   if(BP.cur && BP.strike===null && ball===BP.cur && pendingResult && pendingResult.flight===ball.flight) BP.strike=!!(pendingResult.result||{}).isStrike;
   const busy=!PB.ok || S.pitchInFlight || S.playing || ball || window.__playLive || document.hidden || document.querySelector('.intro,.playball,#teamPick,header.open,#recView') || window.__paused || window.__pbWarm || ($('boxWrap') && !$('boxWrap').hidden);
   if(busy){ BP.idle=0; return; }
+  if(LINEUP.length!==1 || (curBatter()||{}).name!==BP.st.name){ BP.setup=false; window.__bpSetup(); return; }   /* DW 2026-11-23: a game lineup showed up in BP: put the BP hitter back */
+  { const tb=$('teamBox'); if(tb && tb.style.display!=='none') tb.style.display='none'; }
   if(BP.cur){ const q=BP.st, sw=BP.swung===BP.cur, hit=BP.contact===BP.cur; q.pitches++;
     if(sw||hit){ q.swings++; if(BP.strike) q.swk++; if(!hit){ q.miss++; q.last='Swing and miss'; } } else { q.takes++; q.last='Took '+(BP.strike?'a strike':'a ball'); }
-    BP.cur=null; BP.swung=null; BP.contact=null; BP.strike=null; S.balls=0; S.strikes=0; S.outs=0; S.bases=[null,null,null,null]; try{ renderCount(); }catch(e){} bpSaveCur(); bpHud(); }
+    BP.cur=null; BP.swung=null; BP.contact=null; BP.strike=null; S.outs=0; S.bases=[null,null,null,null]; try{ renderCount(); }catch(e){} bpSaveCur(); bpHud(); }
   if(!BP.idle){ BP.idle=performance.now(); return; } if(performance.now()-BP.idle<700) return; BP.idle=0;   /* next pitch right away */
   try{ selectTarget(autoPick()); }catch(e){ console.error('bp pitch',e); } }
-function bpSummary(){ try{ const q=JSON.parse(LS('sbBpCur')||'null'); if(q && q.name){ const L=bpLine(q); return q.name+' vs '+q.def+' defense · '+q.ab+' AB, '+q.h+' H, '+q.hr+' HR · AVG '+L.avg+', RP7 '+L.rp7; } }catch(e){} return null; }
+function bpSummary(){ try{ const q=JSON.parse(LS('sbBpCur')||'null'); if(q && q.name){ const L=bpLine(q); return q.name+' vs '+q.def+' defense · '+q.ab+' AB, '+q.h+' H, '+q.hr+' HR, '+(q.bb|0)+' BB · AVG '+L.avg+', OBP '+L.obp+', RP7 '+L.rp7; } }catch(e){} return null; }
 window.rp7Of=function(x){ const pa=x.PA|0, ab=(x.AB|0)||Math.max(0,pa-(x.BB|0)); if(!pa||!ab) return ''; const ob=((x.OB!=null?x.OB:(x.H|0)+(x.BB|0))|0)/pa; if(ob>=1) return ''; const slg=((x['1B']|0)+2*(x['2B']|0)+3*(x['3B']|0)+4*(x.HR|0))/ab; return (7*slg/(1-ob)).toFixed(1); };   /* DW 2026-11-23 */
 function dbNext(){ const d=DB.st; d.i++; if(d.i>=d.list.length){
     if(d.round<d.plan.length-1){ d.past.push({label:dbRoundName(d,d.round), list:d.list}); const adv=dbRank(d.list).slice(0,d.plan[d.round+1]).map(q=>q.name);
@@ -15305,7 +15319,7 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
    +'<div id="hsNew"><div class="hsStep"><b>Game, derby or batting practice</b><div class="hsOpts">'+opt('hsType','game','Game','A full game between two teams',gt!=='derby'&&gt!=='bp')+opt('hsType','derby','Home Run Derby','Pick the hitters and how many make round 2 and the finals',gt==='derby')+opt('hsType','bp','Batting Practice','Pick any hitter and a defense, and hit as long as you want',gt==='bp')+'</div></div>'
    +'<div id="hsBP" class="hsStep"><b>Batting practice</b><label class="hsRow"><span>Hitter</span><select id="hsBpBat">'+TEAMS.map(t=>'<optgroup label="'+esc(t.name)+'">'+t.lineup.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>').join('')+'</optgroup>').join('')+'</select></label><label class="hsRow"><span>Defense</span><select id="hsBpDef">'+names.map(n=>'<option>'+esc(n)+'</option>').join('')+'</select></label>'
      +'<div class="hsOpts" style="margin-top:6px">'+opt('hsBpP','bp','BP pitching','Strike-Mid every pitch, a tumbler, with his normal misses',LS('sbBpPitch')!=='real')+opt('hsBpP','real','Real pitching','The pitcher works you like in a game, trying to get you out',LS('sbBpPitch')==='real')+'</div>'
-     +'<div class="hsNote">Take or swing at any pitch. Each ball gets one call (fly out, pop out, foul out, ground out, single, double, triple, home run and how far), then the next pitch comes right away. No scoreboard. His stats, with RP7, add up until you press Quit BP.</div></div>'
+     +'<div class="hsNote">Take or swing at any pitch; every at bat starts 1-1 like a game, so a walk or a strikeout can happen. Each ball gets one call (fly out, pop out, foul out, ground out, single, double, triple, home run and how far), then the next pitch comes right away. No scoreboard. His stats, with RP7, add up until you press Quit BP.</div></div>'
    +'<div id="hsDerby" class="hsStep"><b>Derby hitters</b><div><button type="button" class="hsSmall" id="hsAll">All</button><button type="button" class="hsSmall" id="hsNone">None</button><span class="hsNote" id="hsDN"></span></div><div class="hsPl">'+plList+'</div><label class="hsRow"><span>Make round 2</span><select id="hsCut2"></select></label><label class="hsRow"><span>Make the finals</span><select id="hsCutF"></select></label><div class="hsNote">They hit in the order you tick them. Each hitter gets 10 pitches; he can take 2 without losing one. The pitcher throws a tumbler down the middle every time, with his normal misses. Home run attempts carry 10 ft farther.</div></div>'
    +'<div id="hsGameOnly"><div class="hsStep"><b>1. Mode</b><div class="hsOpts">'
      +opt('hsMode','online','1) Play vs a real opponent over the internet','Coming next: needs the game server',curMode==='online')
@@ -15361,6 +15375,10 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
   setTimeout(()=>{ try{ q('#hsPlay').focus(); }catch(e){} },50); }
 function release(){ if(!window.__homeHold) return; window.__homeHold=false; PB.timer=null; if(window.__homeIntro){ window.__homeIntro=0; if(!window.__derbyOn && !window.__bpOn) try{ introStart(); }catch(e){ console.error('intro',e); window.__intro={done:true}; } } }
 window.showHome=showHome;
+setTimeout(function hd(){ try{ const ov=$('btnOvl'); if(!ov){ setTimeout(hd,500); return; } if($('btnHitDir')) return; const b=document.createElement('button'); b.id='btnHitDir'; b.type='button'; b.className=ov.className;
+  const show=()=>{ const el=$('sprBox'), on=!!LS('sbSprShow'); if(el) el.style.display=on?'':'none'; b.textContent=on?'Hide hitting direction':'Hitting direction'; };
+  b.onclick=e=>{ LS('sbSprShow',LS('sbSprShow')?null:'1'); show(); e.target.blur(); }; ov.after(b); show();
+  const sm=[...document.querySelectorAll('details.mgrp>summary')].find(x=>/Sliders/i.test(x.textContent)); if(sm) sm.parentElement.classList.add('ownerOnly'); }catch(e){ console.error('hitdir',e); } },900);
 pickTeams=function(){ showHome('new'); };   /* New game (Menu and the end-of-game box score) opens the home screen */
 setTimeout(()=>{ try{ const ng=$('btnNewGame'); if(ng && !$('btnHome')){ const b=document.createElement('button'); b.id='btnHome'; b.type='button'; b.className=ng.className; b.textContent='Home screen'; b.title='Back to the opening screen: resume, or start a new game with a different mode, teams, field or wind'; b.onclick=e=>{ e.target.blur(); showHome('menu'); }; ng.after(b); } }catch(e){} },600);
 /* a picked wind from the home screen: speed and changes go on after the page loads */
