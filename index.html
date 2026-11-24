@@ -1458,7 +1458,7 @@ function contactCall(bb){ const s=bb.spray, la=bb.la, ev=bb.ev, fc=s>15?'right':
   if(la<45){ let deep=false; try{ const F=window.FIELD3D, o={spin:bb.spin||0,cut:bb.cut||0}; const g=F.simulate(ev,la,s,false,undefined,undefined,o); deep=!!(g&&(g.hr||(g.wallAt&&!g.wallAt.bounced))); if(!deep){ const g2=F.simulate(ev+6,la,s,false,undefined,undefined,o); deep=!!(g2&&g2.hr); } }catch(e){ deep=ev>=95; }   /* DW 2026-11-22: only near the fence */
     return deep?P([`Drilled deep to ${f}!`,`Big fly ball to ${f}, it's got a chance!`]):ev>=88&&first>=230?P([`Fly ball to deep ${f}.`,`Fly ball, ${f} field, he's going back.`]):P([`Fly ball to ${f}.`,`Lifted to ${f} field.`]); }
   if(first>=300) return P([`High fly ball, deep to ${f}!`,`Sky high to deep ${f}, it's got a chance!`]);   /* DW 2026-11-24: not a pop up when it carries */
-  if(first>=170) return P([`High fly ball to ${f}.`,`Lofted high to ${f} field.`]);
+  if(first>=220) return P([`High fly ball to ${f}.`,`Lofted high to ${f} field.`]);
   return P(['Popped up.',`High pop up, ${fc} side.`]); }
 function defApply(res){ try{ const d=res&&res.def; if(!d) return; const R=fldTeam().roster, add=(pos,k)=>{ const p=R[pos]; if(!p||!p.name) return; const x=BOX(p.name); x[k]=(x[k]|0)+1; };
     (d.po||[]).forEach(q=>add(q,'PO')); (d.a||[]).forEach(q=>add(q,'A')); (d.e||[]).forEach(q=>add(q,'E')); if(d.roe){ const x=BOX(curBatter().name); x.ROE=(x.ROE|0)+1; } }catch(e){} }
@@ -15766,7 +15766,9 @@ function newSet(d){ d.set=Array.from({length:d.N},()=>Math.floor(Math.random()*2
 function setLineup(d){ const ps=d.list.map(q=>dbPlayer(q.name)).filter(Boolean); TEAMS[0].lineup=ps; LINEUP.splice(0,LINEUP.length,...ps); S.order=d.i; S.balls=1; S.strikes=1; try{ setUpBatter(false); }catch(e){} }
 function startList(d,names,lim){ d.list=names.map(n=>newQ(d,n,lim)); d.i=0; if(!lim) newSet(d); setLineup(d); dbSave(); dbHud(); }
 const pitchesTo=(d,q)=>q.pn|0;
-function isMoney(d,q,idx){ if(!d.money||q.lim) return false; if(d.same && q.ord) return q.ord[idx]===d.setMoney; return idx===q.mi; }
+function isMoney(d,q,idx){ if(!d.money||q.lim) return false; return idx===(d.N||N0())-1; }   /* DW 2026-11-24: the moneyball is the last pitch (12th of 12) */
+/* DW 2026-11-24: in the derby the announcer only talks home runs and the derby itself: no "ground rule double", no "ground ball to second" */
+if(DB.on && typeof ANN!=='undefined' && ANN.say){ const _say=ANN.say; ANN.say=function(t){ if(typeof t==='string' && !/home run|gone|goodbye|over the fence|cleared|moneyball|bonus|now up|tiebreak|sudden death|champion|round|final|wins|tied|keeps hitting|keeps swinging|derby|chance|point|pitch/i.test(t)) return; return _say.apply(this,arguments); }; }
 
 /* standard bracket order: 1 v 16, 8 v 9, ... so the top two seeds can only meet in the final */
 function seedOrder(n){ let o=[1]; while(o.length<n){ const m=o.length*2+1; o=o.flatMap(s=>[s,m-s]); } return o; }
