@@ -15946,3 +15946,74 @@ if(window.__homeHold) showHome('load');
   const go=()=>{ if(!keepHome && Date.now()-pickT<6000){ try{ sessionStorage.setItem('sbHomeGo','1'); }catch(e){} } };
   addEventListener('pagehide',go); addEventListener('beforeunload',go);
 })();</script>
+
+<script>/*__fieldPics*/
+/* DW 2026-11-24: "put a batter/pitcher picture that is popoutable and a full field picture that is popoutable next to each field we can pick from."
+   Every field list (Menu > Pick Field and the home screen Field box) becomes a picture list: each row shows a small batter's-eye picture and a
+   small full-field picture next to the name. Point at (or tap) a picture and it pops out big; click the name to pick the field.
+   Pictures live outside the page in parks/pics/<id>_plate.jpg, <id>_field.jpg (small) and <id>_plate_big.jpg, <id>_field_big.jpg (pop-out). */
+(function(){
+  const DIR='parks/pics/';
+  const css=document.createElement('style'); css.textContent=`
+.fpBtn{font:inherit;background:#18222e;color:inherit;border:1px solid #2c3a4a;border-radius:6px;padding:3px 8px;cursor:pointer;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.fpPan{position:fixed;z-index:9000;background:#121821;border:1px solid #2a3442;border-radius:8px;overflow:auto;padding:4px;width:min(560px,96vw);box-shadow:0 8px 28px rgba(0,0,0,.55)}
+.fpRow{display:flex;align-items:center;gap:6px;padding:4px;border-radius:6px;cursor:pointer;color:#dfe6ee;font-size:13px;line-height:1.25}
+.fpRow:hover{background:#1f2b3a}.fpRow.on{background:#24364c;outline:1px solid #3d6a9a}
+.fpRow img{width:96px;height:54px;object-fit:cover;border-radius:4px;flex:none;background:#0b1016;border:1px solid #2c3a4a;cursor:zoom-in}
+.fpRow img:hover{border-color:#ffe600}
+.fpRow span{flex:1;min-width:0}
+.fpBig{position:fixed;z-index:9001;width:min(720px,62vw);border-radius:8px;border:2px solid #ffe600;box-shadow:0 10px 36px rgba(0,0,0,.7);pointer-events:none;background:#0b1016}
+.fpBig.pinned{pointer-events:auto;cursor:zoom-out;left:50%!important;top:50%!important;transform:translate(-50%,-50%);width:min(1100px,94vw)}
+.fpCap{position:fixed;z-index:9002;background:#0b1016cc;color:#ffe600;font-size:13px;padding:2px 8px;border-radius:4px;pointer-events:none}
+@media (hover:none){.fpRow img{width:84px;height:47px}}`;
+  document.head.appendChild(css);
+
+  const big=document.createElement('img'), cap=document.createElement('div');
+  big.className='fpBig'; big.hidden=true; big.alt=''; cap.className='fpCap'; cap.hidden=true;
+  const hideBig=()=>{ big.hidden=true; cap.hidden=true; big.classList.remove('pinned'); };
+  big.onclick=e=>{ e.stopPropagation(); hideBig(); };
+  const showBig=(src,label,near,pin)=>{ big.src=src; big.hidden=false; cap.textContent=label; cap.hidden=false; big.classList.toggle('pinned',!!pin);
+    if(pin){ big.style.left=''; big.style.top=''; requestAnimationFrame(()=>{ const r=big.getBoundingClientRect(); cap.style.left=(r.left+8)+'px'; cap.style.top=(r.top+8)+'px'; }); return; }
+    const w=Math.min(720,innerWidth*0.62), h=w*822/1463, n=near.getBoundingClientRect(), pan=near.closest('.fpPan').getBoundingClientRect();
+    const left=pan.right+8+w<innerWidth?pan.right+8:Math.max(4,pan.left-8-w);
+    const top=Math.max(4,Math.min(innerHeight-h-8,n.top-h/3));
+    big.style.left=left+'px'; big.style.top=top+'px'; cap.style.left=(left+8)+'px'; cap.style.top=(top+8)+'px'; };
+
+  function build(sel){
+    if(!sel || sel.__fp) return; sel.__fp=true;
+    const btn=document.createElement('button'), pan=document.createElement('div');
+    btn.type='button'; btn.className='fpBtn'; pan.className='fpPan'; pan.hidden=true;
+    const label=()=>{ const o=sel.selectedOptions[0]; btn.textContent=(o?o.textContent:'Field')+' ▾'; };
+    sel.style.display='none'; sel.parentNode.insertBefore(btn,sel.nextSibling); document.body.appendChild(pan); label();
+    sel.addEventListener('change',label);
+    const fill=()=>{ pan.innerHTML='';
+      [...sel.options].forEach(o=>{ const r=document.createElement('div'); r.className='fpRow'+(o.value===sel.value?' on':'');
+        const nm=o.textContent;
+        [['plate','Batter and pitcher view'],['field','Full field']].forEach(([v,t])=>{ const im=document.createElement('img'); im.loading='lazy'; im.alt=t; im.title=t+' (click to pop out)';
+          im.src=DIR+o.value+'_'+v+'.jpg'; im.onerror=()=>{ im.style.visibility='hidden'; };
+          const bigSrc=DIR+o.value+'_'+v+'_big.jpg';
+          im.onmouseenter=()=>{ if(!big.classList.contains('pinned')) showBig(bigSrc,nm.replace(/ \(LF.*/,'')+' - '+t,im,false); };
+          im.onmouseleave=()=>{ if(!big.classList.contains('pinned')) hideBig(); };
+          im.onclick=e=>{ e.stopPropagation(); showBig(bigSrc,nm.replace(/ \(LF.*/,'')+' - '+t,im,true); };
+          r.appendChild(im); });
+        const sp=document.createElement('span'); sp.textContent=nm; r.appendChild(sp);
+        r.onclick=()=>{ pan.hidden=true; hideBig(); if(o.value!==sel.value){ sel.value=o.value; sel.dispatchEvent(new Event('change',{bubbles:true})); } label(); };
+        pan.appendChild(r); }); };
+    btn.onclick=e=>{ e.preventDefault(); e.stopPropagation(); if(!pan.hidden){ pan.hidden=true; hideBig(); return; }
+      fill(); pan.hidden=false; const b=btn.getBoundingClientRect(), w=Math.min(560,innerWidth*0.96);
+      pan.style.left=Math.max(4,Math.min(innerWidth-w-4,b.left))+'px';
+      const below=innerHeight-b.bottom-12, above=b.top-12;
+      if(below>=260 || below>=above){ pan.style.top=(b.bottom+4)+'px'; pan.style.bottom=''; pan.style.maxHeight=Math.max(160,below)+'px'; }
+      else { pan.style.top=''; pan.style.bottom=(innerHeight-b.top+4)+'px'; pan.style.maxHeight=above+'px'; }
+      const on=pan.querySelector('.on'); if(on) on.scrollIntoView({block:'nearest'}); };
+    document.addEventListener('mousedown',e=>{ if(!pan.hidden && !pan.contains(e.target) && e.target!==btn && e.target!==big){ pan.hidden=true; hideBig(); } },true);
+    addEventListener('keydown',e=>{ if(e.key==='Escape' && (!pan.hidden || !big.hidden)){ pan.hidden=true; hideBig(); } });
+    /* the home screen goes away when the game starts: take the list with it */
+    const gone=new MutationObserver(()=>{ if(!document.contains(sel)){ pan.remove(); gone.disconnect(); } }); gone.observe(document.body,{childList:true,subtree:true});
+  }
+  const scan=()=>{ ['selPark','hsPark'].forEach(id=>{ const s=document.getElementById(id); if(s && !s.__fp) try{ build(s); }catch(e){ console.error('field pics',e); } }); };
+  const go=()=>{ document.body.appendChild(big); document.body.appendChild(cap); scan(); new MutationObserver(scan).observe(document.body,{childList:true,subtree:true}); };
+  if(document.body) go(); else addEventListener('DOMContentLoaded',go);
+})();
+
+</script>
