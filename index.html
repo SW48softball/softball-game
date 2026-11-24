@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <script>/* DW 2026-11-23 home screen: hold Play Ball and the intro until the opening screen closes */
 try{ window.__derbyOn=localStorage.getItem('sbGameType')==='derby'; window.__bpOn=localStorage.getItem('sbGameType')==='bp'; }catch(e){}
 window.__homeHold=(function(){ try{ if(/[?&]home=0/.test(location.search)) return false; if(sessionStorage.getItem('sbHomeGo')){ sessionStorage.removeItem('sbHomeGo'); window.__homeFresh=true; return false; } }catch(e){} return true; })();
