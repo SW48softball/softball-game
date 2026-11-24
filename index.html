@@ -15961,7 +15961,10 @@ if(window.__homeHold) showHome('load');
   /* DW 2026-11-24: greyed out, can't be picked until we work on them */
   const OFF=new Set(['arlReal','bakReal','csReal','cs2Real','comReal','fenReal']);
   const css=document.createElement('style'); css.textContent=`
-.fpBtn{font:inherit;background:#18222e;color:inherit;border:1px solid #2c3a4a;border-radius:6px;padding:3px 8px;cursor:pointer;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.fpBtn{font:inherit;background:#18222e;color:inherit;border:1px solid #2c3a4a;border-radius:6px;padding:3px 8px;cursor:pointer;max-width:340px;text-align:left;display:inline-flex;flex-direction:column;gap:1px}
+.fpBtn:hover{border-color:#ffe600}
+.fpBtn .fpName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.fpBtn .fpMore{font-size:11px;color:#ffe600;white-space:nowrap}
 .fpPan{position:fixed;z-index:9000;background:#121821;border:1px solid #2a3442;border-radius:8px;overflow:auto;padding:4px;width:min(560px,96vw);box-shadow:0 8px 28px rgba(0,0,0,.55)}
 .fpRow{display:flex;align-items:center;gap:6px;padding:4px;border-radius:6px;cursor:pointer;color:#dfe6ee;font-size:13px;line-height:1.25}
 .fpRow:hover{background:#1f2b3a}.fpRow.on{background:#24364c;outline:1px solid #3d6a9a}
@@ -15991,7 +15994,9 @@ if(window.__homeHold) showHome('load');
     [...sel.options].forEach(o=>{ if(OFF.has(o.value)) o.disabled=true; });
     const btn=document.createElement('button'), pan=document.createElement('div');
     btn.type='button'; btn.className='fpBtn'; pan.className='fpPan'; pan.hidden=true;
-    const label=()=>{ const o=sel.selectedOptions[0]; btn.textContent=(o?o.textContent:'Field')+' ▾'; };
+    /* short name + an arrow and "pick" so it reads as a list (DW 2026-11-24 thought there was only 1 field); re-read every second because the game sets the value without a change event */
+    const label=()=>{ const o=sel.selectedOptions[0]; const t=(o?o.textContent:'Field').replace(/ \(LF.*/,''); if(btn.__t!==t){ btn.__t=t; btn.innerHTML=''; const a=document.createElement('span'); a.className='fpName'; a.textContent=t; const c=document.createElement('span'); c.className='fpMore'; c.textContent='Pick from '+[...sel.options].filter(x=>!x.disabled).length+' fields ▾'; btn.append(a,c); } };
+    setInterval(label,1000);
     sel.style.display='none'; sel.parentNode.insertBefore(btn,sel.nextSibling); document.body.appendChild(pan); label();
     sel.addEventListener('change',label);
     const fill=()=>{ pan.innerHTML='';
