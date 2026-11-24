@@ -9437,6 +9437,18 @@ function sspCourtBounce(fl){ if(!fl || fl.foul || !fl.samples || fl.samples.leng
   fl.samples=keep; fl.courtRest=true; if(fl.landed) fl.landed=Object.assign({},fl.landed,{t:keep[keep.length-1].t});
   const st=fl.start||performance.now(); for(const hh of hits) setTimeout(()=>{ if(flight===fl) sspPaveSound(hh.v); }, Math.max(0, st+hh.t*1000-performance.now())); }
 
+/* ssp4: sharp dirt grain from his close-up photo laid over the broadcast picture's dirt (DW 2026-11-23: blurry) */
+function sspPhotoGrain(mat){ const P=PKD(); if(!P || !P.dirtT) return mat; const tD=sspTile(P.dirtT), uOn={value:0}; tD.userData.u=uOn; const ob=mat.onBeforeCompile;
+  mat.onBeforeCompile=function(sh,r){ if(ob) ob.call(this,sh,r); /* ssp4-grain */ sh.uniforms.tSD2={value:tD}; sh.uniforms.uSOn2=uOn;
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D tSD2; uniform float uSOn2;')
+     .replace('#include <map_fragment>',`#include <map_fragment>
+      if(uSOn2>0.5){ vec2 sp=vec2(vWP.x,-vWP.z); vec3 Dc=pow(vec3(166.,124.,96.)/255.,vec3(2.2)); vec3 lw=vec3(0.3,0.59,0.11);
+        float w=smoothstep(0.38,0.62,texture2D(tBig,sp/41.0).r); mat2 R=mat2(0.8,-0.6,0.6,0.8);
+        vec3 g=mix(texture2D(tSD2,sp/4.0).rgb, texture2D(tSD2,R*sp/4.6+0.31).rgb, w);
+        float ratio=dot(g,lw)/dot(Dc,lw), pl=dot(diffuseColor.rgb,lw)/dot(Dc,lw);
+        diffuseColor.rgb=mix(diffuseColor.rgb*mix(1.0,ratio,0.9), g*pl, 0.35); }`); };
+  mat.needsUpdate=true; return mat; }
+
 async function champBuild(){ window.__chCleared=chCleared; window.__CH_LAND=CH_LAND; window.__chHit=chHit; window.__chHitSound=chHitSound; window.__chGround=chGround; await chFonts(); chBuildSky(); chBuildSkyBand();
   try{ const G=window.__outerGround; if(G){ G.geometry.dispose(); G.geometry=new THREE.CircleGeometry(720,128); } }catch(e){}   /* DW 2026-11-23: the ground stops, the sky shows behind the wall */
   chBuildWall(); chBuildHill(); chBuildHelmers(); chBuildBleachers(); chBuildTrees(); chBuildFarLights(); chFieldHi(); chBuildDW(); chBuildPop();
@@ -9454,7 +9466,7 @@ async function build(){ await loadParkFile();
   const field=new THREE.Mesh(new THREE.PlaneGeometry(fw,fh), realGround(new THREE.MeshBasicMaterial({map:fieldT})));
   field.rotation.x=-Math.PI/2; field.position.copy(W((FIELD_X0+FIELD_X1)/2,(FIELD_Y0+FIELD_Y1)/2,0)); scene.add(field);
   if(/^ssp/.test(PARK_ID)){ try{ sspGroundReal(field.material); sspCourts(); }catch(e){ console.error('ssp ground',e); } }
-  if(PARK.sspPhotoGround){ try{ const t=await sspTex(PKD().fieldHi); if(t){ const m=new THREE.Mesh(new THREE.PlaneGeometry(250,190), realGround(new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2})));
+  if(PARK.sspPhotoGround){ try{ const t=await sspTex(PKD().fieldHi); if(t){ const m=new THREE.Mesh(new THREE.PlaneGeometry(250,190), sspPhotoGrain(realGround(new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2}))));
     m.rotation.x=-Math.PI/2; m.position.copy(W(0,81,0.01)); m.renderOrder=0; scene.add(m); } }catch(e){ console.error('ssp4 ground',e); } }   /* DW 2026-11-23: his broadcast picture's dirt and grass */   /* DW 2026-11-23 */
   // sharp infield patch (20 px/ft, x -80..80, y -6..150) with feathered edges, so low cameras (the pitching view) stay crisp
   if(!PARK.groundPhoto){ const t=await loadTex(TEX.fieldHi); turfRecolor(t,[-80,80,-6,150]); baseWarp(t,[-80,80,-6,150],true); patchTrim(t,[-80,80,-6,150]); const m=new THREE.Mesh(new THREE.PlaneGeometry(160,156), realGround(new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2})));
