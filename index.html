@@ -9808,6 +9808,7 @@ let flight=null, camMode='fixed';
 function setWeather(o){ Object.assign(WEATHER,o); WEATHER.temp=Number(WEATHER.temp); WEATHER.hum=Number(WEATHER.hum); WEATHER.change=Number(WEATHER.change); if(WEATHER.change>0 && WIND.mode && WIND.mode!=='random' && WIND.next===Infinity) WIND.next=0; }
 function weatherMul(){ return 1 - 0.009*Math.max(0,(WEATHER.temp-70)/10) - 0.0008*Math.max(0,WEATHER.hum-40) - (WEATHER.day?0.01:0); }
 const WIND_EFFECT=0.45, WIND_CROSS=1.8, WIND_SOFT=1.4, WIND_LOW=0.7, WIND_REF_H=60, SLICE_CHANCE=0.4, CROSS_DRAG=0.8, HEAD_GROW=0.05, TAIL_SOFT=2.0;   // share of the flag-height wind the ball actually feels (tuned to DW: never past 490, ~390 for top hitters into a 10 mph wind)
+const GB_OF_R=130*((typeof BASE_FT!=='undefined'?BASE_FT:75)/75);   /* DW 2026-11-24: where the infield ends and the outfield grass starts, for grounders (ft from home) */
 function simulate(evMph, laDeg, sprayDeg, noFence=false, windMph=WIND.mph, windDir=WIND.dir, opts={}){
   // opts.spin: extra backspin lift a hitter puts on it (0..1, ~+20 ft at 1); opts.cut: 0..1, how well he cuts it through a wind blowing in
   const spinCl=(opts.spin||0)*0.09, rng=opts.seed!=null?mulberry(opts.seed):Math.random;
@@ -9865,12 +9866,14 @@ function simulate(evMph, laDeg, sprayDeg, noFence=false, windMph=WIND.mph, windD
       if(!landed){ landed={x:xf,y:yf,t, dist:Math.hypot(xf,yf)}; foul = Math.abs(a)>45; if(foul){ let ok=true; try{ ok=foulRoom({x:xf,y:yf}); }catch(e){} landed.fb=ok?(rng()<0.5?1:2):0; } }   /* DW 2026-11-22: a foul bounces once or twice before it's dead */
       if(hr || grd || (foul && (bounces>=(landed.fb||0) || rolling))){ q[1]=0.12; out.push({t,x:q[0]/FT,y:q[2]/FT,h:0.4}); break; }
       // artificial turf: lively, uneven hops; now and then one kicks up high
-      if(rolling){ v[1]=0; } else if(v[1]<0){ const e=(bounces===0 ? 0.30+0.22*rng()+(rng()<0.12?0.12:0) : 0.30+0.12*rng())*(PARK.grass?0.78:1); v[1]=-v[1]*e; const fr=(0.80+0.06*rng())*(PARK.grass?0.93:1);   /* real grass: lower, deader hops than turf */ v[0]*=fr; v[2]*=fr; bounces++;
-        // DW: grounders hop on the turf (seams and the rubber infill kick a fast ball up), smaller each time, then roll out
-        const vh=Math.hypot(v[0],v[2]); if(vh>5 && bounces<8) v[1]=Math.max(v[1], Math.min(2.6, vh*(0.035+0.045*rng()))*Math.pow(0.8,bounces-1)); if(bounces>=2 && hop2===null){ hop2=t; hop2At={x:xf,y:yf}; } if(Math.abs(v[1])<1.2){ rolling=true; v[1]=0; if(hop2===null){ hop2=t; hop2At={x:xf,y:yf}; } } }
+      if(rolling){ v[1]=0; } else if(v[1]<0){ const vh0=Math.hypot(v[0],v[2]), inf=r<GB_OF_R, low=-v[1]<vh0*0.6, spd=Math.max(0,Math.min(1,(vh0-15)/20));   /* DW 2026-11-24: spd 0 = a slow roller (34 mph), 1 = a rocket (78+ mph) */
+        const e=low ? (0.42-0.22*spd+0.10*rng())*(PARK.grass?0.85:1) : (bounces===0 ? 0.30+0.22*rng()+(rng()<0.12?0.12:0) : 0.30+0.12*rng())*(PARK.grass?0.78:1); v[1]=-v[1]*e;
+        const fr=low ? (inf ? 0.955+0.025*rng() : 0.90+0.04*rng())*(PARK.grass?0.985:1) : (0.80+0.06*rng())*(PARK.grass?0.93:1);   /* a grounder skips along the infield and keeps its speed; a ball dropping in from a fly still dies on its first hop */ v[0]*=fr; v[2]*=fr; bounces++;
+        // DW: slow grounders bounce, hard ones skip low and flat; smaller each time, then roll
+        const vh=Math.hypot(v[0],v[2]); if(vh>5 && bounces<8) v[1]=Math.max(v[1], (low ? Math.min(2.4, vh*(0.075-0.055*spd)*(0.7+0.6*rng())) : Math.min(2.6, vh*(0.035+0.045*rng())))*Math.pow(0.8,bounces-1)); if(bounces>=2 && hop2===null){ hop2=t; hop2At={x:xf,y:yf}; } if(Math.abs(v[1])<1.2){ rolling=true; v[1]=0; if(hop2===null){ hop2=t; hop2At={x:xf,y:yf}; } } }
       q[1]=0.12;
     }
-    if(rolling){ const vh=Math.hypot(v[0],v[2]), nv=Math.max(0, vh*0.9975 - 2.0*dt); v[0]*=nv/(vh||1); v[2]*=nv/(vh||1); if(nv<0.3){ out.push({t,x:q[0]/FT,y:q[2]/FT,h:q[1]/FT}); break; } }   // turf rolling drag + friction: comes to a real stop
+    if(rolling){ const vh=Math.hypot(v[0],v[2]), nv=Math.max(0, r<GB_OF_R ? vh*0.99985 - 0.25*dt : vh*0.9990 - 2.2*dt);   /* DW 2026-11-24: barely slows on the infield, gradual on the outfield grass */ v[0]*=nv/(vh||1); v[2]*=nv/(vh||1); if(nv<0.3){ out.push({t,x:q[0]/FT,y:q[2]/FT,h:q[1]/FT}); break; } }   // turf rolling drag + friction: comes to a real stop
     p=q; out.push({t,x:p[0]/FT,y:p[2]/FT,h:p[1]/FT});
     if((hr||grd) && hf<0.5) break;
   }
