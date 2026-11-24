@@ -15002,6 +15002,13 @@ html.derbyOn .scbug,html.derbyOn #nowBat,html.derbyOn #teamBox,html.derbyOn #hud
 html.bpOn .scbug,html.bpOn #nowBat,html.bpOn #teamBox,html.bpOn #hudCount,html.bpOn #gameSS,html.bpOn #modeChip,html.bpOn #throwTo,html.bpOn #lastHit{display:none!important}   /* DW: no scoreboard in batting practice */
 html:not(.owner) #btnOvl,html:not(.owner) #btnHitDir,html:not(.owner) #btnTestStats,html:not(.owner) #btnStadium,html:not(.owner) #btnRec,html:not(.owner) #btnRecBat,html:not(.owner) #btnReplayRec,html:not(.owner) #sprBox,html:not(.owner) #errFlash,html:not(.owner) #errList,html:not(.owner) .ownerOnly{display:none!important}   /* DW 2026-11-23: only DW touches these */
 #pitchCall{top:4px!important}   /* DW 2026-11-23: the ball/strike call sits at the very top, off the next pitch */
+#keyGuide{position:fixed;inset:0;z-index:95;background:rgba(4,8,14,.72);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;overflow:auto}
+#keyGuide .kgCard{width:min(980px,100%);max-height:calc(100vh - 24px);overflow:auto;background:rgba(14,22,32,.97);border:1px solid #2d4258;border-radius:14px;padding:14px 18px;color:#eef3f1;font:500 14px Inter,system-ui,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#keyGuide .kgHd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}#keyGuide .kgHd b{font:700 28px 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.08em;color:#ffe600}#keyGuide .kgHd span{opacity:.7;font-size:13px}
+#keyGuide .kgCols{columns:2 330px;column-gap:22px}#keyGuide .kgSec{break-inside:avoid;margin-bottom:12px}
+#keyGuide h4{margin:4px 0 4px;font:700 16px 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#9fc3e8}
+#keyGuide table{border-collapse:collapse;width:100%}#keyGuide td{padding:3px 4px;border-top:1px solid #1f2f40;vertical-align:top}#keyGuide td.kgK{white-space:nowrap;width:1%;padding-right:12px}
+#keyGuide kbd{display:inline-block;min-width:22px;text-align:center;font:700 13px Inter,system-ui,sans-serif;background:#223246;border:1px solid #3d5876;border-bottom-width:2px;border-radius:5px;padding:1px 6px;margin-right:3px;color:#fff}#keyGuide td i{font-style:normal;opacity:.6;margin-right:4px;font-size:12px}
 #teamPick .dbChamp{font:800 30px 'Barlow Condensed',system-ui,sans-serif;color:#fff;margin:6px 0 2px;letter-spacing:.02em}
 #modeChip{position:fixed;left:50%;transform:translateX(-50%);bottom:4px;opacity:.85;z-index:30;font:600 12px Inter,system-ui,sans-serif;background:rgba(10,16,24,.72);color:#cfe0f0;border:1px solid #2d4258;border-radius:7px;padding:3px 8px;pointer-events:none}
 </style>
@@ -15316,7 +15323,7 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
   const curMode=LS('sbMode')||'cpu', gt=LS('sbGameType')||'derby', dSel=(()=>{ try{ return JSON.parse(LS('sbDerbyPlayers')||'[]'); }catch(e){ return []; } })();
   const plList=TEAMS.map(t=>'<h5>'+esc(t.name)+'</h5>'+t.lineup.map(p=>'<label><input type="checkbox" class="hsDP" value="'+esc(p.name)+'"'+(dSel.includes(p.name)?' checked':'')+'> '+esc(p.name)+'</label>').join('')).join('');
   w=D.createElement('div'); w.id='teamPick'; w.className='home';
-  w.innerHTML='<div class="hsCard"><h1>Softball</h1><div class="hsSub">Pick how you want to play.</div>'
+  w.innerHTML='<div class="hsCard"><h1>Softball</h1><div class="hsSub">Pick how you want to play. <b style="color:#ffe600">Press K any time for the controls.</b></div>'
    +'<div class="hsStep"><b>Start</b><div class="hsOpts">'+opt('hsStart','resume','Resume game',sum?esc(sum):'No game in progress',!!sum&&start!=='new'&&!onD&&!onB,!sum)+(dsum?opt('hsStart','resumeDerby','Resume Home Run Derby',esc(dsum),onD&&start!=='new',false):'')+(bsum?opt('hsStart','resumeBp','Resume Batting Practice',esc(bsum),onB&&start!=='new',false):'')+opt('hsStart','new','Start a new game','Pick the mode, teams, field and wind',(!sum&&!dsum&&!bsum)||start==='new')+'</div></div>'
    +'<div id="hsNew"><div class="hsStep"><b>Game, derby or batting practice</b><div class="hsOpts">'+opt('hsType','game','Game','A full game between two teams',gt!=='derby'&&gt!=='bp')+opt('hsType','derby','Home Run Derby','Pick the hitters and how many make round 2 and the finals',gt==='derby')+opt('hsType','bp','Batting Practice','Pick any hitter and a defense, and hit as long as you want',gt==='bp')+'</div></div>'
    +'<div id="hsBP" class="hsStep"><b>Batting practice</b><label class="hsRow"><span>Hitter</span><select id="hsBpBat">'+TEAMS.map(t=>'<optgroup label="'+esc(t.name)+'">'+t.lineup.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>').join('')+'</optgroup>').join('')+'</select></label><label class="hsRow"><span>Defense</span><select id="hsBpDef">'+names.map(n=>'<option>'+esc(n)+'</option>').join('')+'</select></label>'
@@ -15376,6 +15383,25 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
     location.reload(); };
   setTimeout(()=>{ try{ q('#hsPlay').focus(); }catch(e){} },50); }
 function release(){ if(!window.__homeHold) return; window.__homeHold=false; PB.timer=null; if(window.__homeIntro){ window.__homeIntro=0; if(!window.__derbyOn && !window.__bpOn) try{ introStart(); }catch(e){ console.error('intro',e); window.__intro={done:true}; } } }
+
+/* DW 2026-11-24: press K in any mode for every key and what it does (K or Esc closes it) */
+(function(){
+  const sec=(t,rows)=>'<div class="kgSec"><h4>'+t+'</h4><table>'+rows.map(r=>'<tr><td class="kgK">'+r[0].split(' ').map(k=>k==='/'||k==='or'?'<i>'+k+'</i>':'<kbd>'+k+'</kbd>').join('')+'</td><td>'+r[1]+'</td></tr>').join('')+'</table></div>';
+  function html(){ const L=(()=>{ try{ return HITTER.hand>0; }catch(e){ return false; } })(), IN=L?'outside':'inside', OUT=L?'inside':'outside';
+    return '<div class="kgCard"><div class="kgHd"><b>KEYS</b><span>Press K or Esc to close</span></div><div class="kgCols">'
+     +sec('Pitching (when you pitch)',[['Q','High, '+IN+' (to a righty: inside)'],['W','High, middle'],['E','High, '+OUT+' (to a righty: outside)'],['A','Strike, '+IN],['S','Strike, down the middle'],['D','Strike, '+OUT],['Z','Low, '+IN],['X','Low, middle'],['C','Low, '+OUT],['F','Waste pitch (way off on purpose)']])
+     +sec('Hitting (number row or keypad)',[['0','Line drive'],['1','Cut / backspin'],['2','Hit a hole'],['3','Keep it in the park'],['4','Pure power'],['5','Gap and go'],['6','Pull / push (down the line)'],['nothing','Take the pitch: just don\'t swing']])
+     +sec('Running (after the ball is hit)',[['↑ or 8','Hold: lead runner runs to the next base'],['↓ or 2','Hold: lead runner goes back. Quick tap: runners behind him go back'],['← → or 4 6','Slide into the base he is heading for']])
+     +sec('Fielding (when you are on defense)',[['W','Throw to 2nd'],['A','Throw to 3rd'],['D','Throw to 1st'],['S','Throw to the pitcher'],['X','Throw home'],['nothing','The fielder holds the ball']])
+     +sec('Special keys',[['K','This list of keys'],['Space','Pause / resume'],['B','Box score'],['V','Zoom view on or off'],['M','Speed meter'],['Esc','Close a box, or leave the field view']]
+        .concat(window.__owner?[['- =','Defense practice: fielder\'s Arm down / up'],['[ ]','Defense practice: fielder\'s Range down / up'],['R','Defense practice: reset the fielders']]:[]))
+     +'</div></div>'; }
+  function toggle(on){ let w=document.getElementById('keyGuide'); if(on===undefined) on=!w; if(!on){ if(w) w.remove(); return; }
+    w=document.createElement('div'); w.id='keyGuide'; w.innerHTML=html(); w.onclick=()=>toggle(false); document.body.appendChild(w); }
+  addEventListener('keydown',e=>{ const tg=(e.target&&e.target.tagName)||''; if(/INPUT|SELECT|TEXTAREA/.test(tg) || e.ctrlKey||e.altKey||e.metaKey) return;
+    if(e.code==='KeyK' && !e.repeat){ toggle(); e.preventDefault(); e.stopImmediatePropagation(); }
+    else if(e.key==='Escape' && document.getElementById('keyGuide')){ toggle(false); e.stopImmediatePropagation(); } },true);
+  window.__keyGuide=toggle; })();
 window.showHome=showHome;
 { const _skL=swingKey; swingKey=function(type){ const r=_skL.apply(this,arguments); try{ const p=pendingResult; if(ball && !ball.done && !ball.hit && p && p.flight && S.swung){ const front=ball.t0+p.flight.tFront*1000, at=performance.now()+SWING_CONTACT_MS, d=at-front, win=HIT.missTimingMs*((SWINGS[type||'line']||SWINGS.line).win);
       if(d>0 && d<=win && !(typeof wayOff==='function' && wayOff(p.result))){ const b=ball; b.holdT=p.flight.tFront; setTimeout(()=>{ if(!b.hit) b.holdT=null; }, d+400); } } }catch(e){} return r; }; }   /* DW 2026-11-23 */
