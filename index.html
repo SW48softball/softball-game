@@ -9380,7 +9380,7 @@ async function sspTrees(){ const P=PKD(), J=P.treesJ, tex=await sspTex(P.trees);
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:0.4,side:THREE.DoubleSide,fog:false})); m.renderOrder=-1; scene.add(m); }
 async function sspBuild(){ try{ const G=window.__outerGround; if(G) G.material.color.setHex(0x0b140c); }catch(e){}
   await sspTrees(); sspFencePosts(); sspSigns(); await sspBanners(); sspScoreboard();
-  const glow=makeGlow(); for(const a of [-34.4,-15.8,16.0,33.1]) sspLightPole(a,fenceR(a)+38,78,glow);
+  const glow=makeGlow(); for(const a of [-34.4,-15.8,16.0,33.1]) sspLightPole(a,fenceR(a)+(a<0?8:38),78,glow);   /* DW 2026-11-23: LF/LC poles right behind the fence */
   for(const s of [-1,1]) sspLightPole(s*58,215,72,glow); }
 /* the Real versions: our distance numbers painted on the picture's fence as the park's green signs with gold numbers */
 function sspPaintSign(g,X,Y,h,txt){ const c=sspSignCanvas(txt), hh=Math.max(8,h*0.62), ww=hh*512/352; g.drawImage(c,Math.round(X-ww/2),Math.round(Y-hh/2),Math.round(ww),Math.round(hh)); }
