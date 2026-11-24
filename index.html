@@ -9310,7 +9310,7 @@ function sspSignCanvas(txt){ const c=document.createElement('canvas'); c.width=5
   return c; }
 function sspFlat(tex,a,w,h,base,inset){ const r=fenceR(a)-(inset||0.35), th=a*Math.PI/180, m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshLambertMaterial({map:tex, transparent:true, alphaTest:0.05, side:THREE.DoubleSide, emissive:0x1a1a1a, emissiveMap:tex}));
   m.position.copy(W(r*Math.sin(th),r*Math.cos(th),base+h/2)); m.lookAt(W(0,0,base+h/2)); m.renderOrder=2; scene.add(m); return m; }
-function sspSigns(){ for(const [a,d] of [[-43,PARK.LF],[-22.5,PARK.LC],[0,PARK.CF],[22.5,PARK.RC],[43,PARK.RF]]) sspFlat(sspCanvasTex(sspSignCanvas(String(d))),a,6.0,4.1,fenceH(a)-5.0); }
+function sspSigns(){ for(const [a,d] of [[-43,PARK.LF],[-22.5,PARK.LC],[0,PARK.CF],[22.5,PARK.RC],[43,PARK.RF]]) sspFlat(sspCanvasTex(sspSignCanvas(String(d))),a,6.0,4.1,fenceH(a)-8.0); }
 /* fence banners: the Smoky Mountain Classic logo on black vinyl (LF-LC), the Sandy Springs Park sign (RC-RF) */
 async function sspBanners(){ const P=PKD();
   const lg=await new Promise(ok=>{ if(!P.smoky){ ok(null); return; } const i=new Image(); i.onload=()=>ok(i); i.onerror=()=>ok(null); i.src=P.smoky; });
@@ -9670,7 +9670,7 @@ function photoFlagSpot(){ const P=CLE_PHOTO_(), F=P.flag, LX=P.LX||235, RX=P.RX|
   return { px:r*Math.sin(th), py:r*Math.cos(th), poleH, noPole:true, k:Math.max(0.45,Math.min(1.1,poleH/70)) }; }
 function buildFlag(o){ o=o||{};
   const POLE_H=o.poleH||70;                                             // 2/3 of the 105 ft light towers
-  const a=-17*Math.PI/180, R=fenceR(-17)+40;   /* DW: between the left-center light tower (-24 deg) and the batter's eye (edge ~-10 deg) */ const px=o.px!=null?o.px:R*Math.sin(a), py=o.py!=null?o.py:R*Math.cos(a);
+  const FA=PARK.ssp?-9:-17, a=FA*Math.PI/180, R=fenceR(FA)+40;   /* DW 2026-11-23: Sandy Springs flag right of the LC light pole */   /* DW: between the left-center light tower (-24 deg) and the batter's eye (edge ~-10 deg) */ const px=o.px!=null?o.px:R*Math.sin(a), py=o.py!=null?o.py:R*Math.cos(a);
   scene.add(new THREE.AmbientLight(0xffffff,0.75));
   const sun=new THREE.DirectionalLight(0xfff1dc,1.6); sun.position.copy(W(0,-200,140)); scene.add(sun);   // the park lights, from behind home
   if(!o.noPole) realFlagPole(px,py,POLE_H);   // realism pass: brushed aluminium, gold ball, halyard, concrete base
