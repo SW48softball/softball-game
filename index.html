@@ -1343,7 +1343,7 @@ function battedBall(res, dMs, batterValue){
     else { const sd=Math.sign(spray)||HAND(); spray=sd*(48+Math.random()*24); la=Math.max(-5,la+gauss()*14); evMul=0.7+0.3*Math.random(); }
     la=Math.round(Math.max(-8,Math.min(75,la))); }
   if(!mishit && la>=15 && !bad && Math.random()<TUNE.sky*({power:1.8,cut:1.4,pull:1.2,line:0.8,gap:0.8,keep:0.2,hole:0.1}[swingType]??1)){   /* DW 2026-11-24: the towering fly down the line */
-    la=Math.round(43+Math.random()*8); evMul*=0.94+0.06*Math.random(); const sd=Math.sign(spray)||HAND(); spray=sd*(29+Math.random()*13); }
+    la=Math.round(43+Math.random()*8); evMul*=0.88+0.05*Math.random();   /* DW 2026-11-24: a skied ball does not jump off the bat like a long one */ const sd=Math.sign(spray)||HAND(); spray=sd*(29+Math.random()*13); }
   spray = Math.round(Math.max(-75, Math.min(75, spray)));
   // DW: top hitters can put extra backspin on it (~+20 ft) and cut it through a wind blowing in
   const skill=batterValue/99;
@@ -5660,6 +5660,13 @@ function lbPanel(d){   /* the board's light panel as a picture: 582 x 182 photo 
   q.fillStyle='rgba(70,40,20,0.22)'; for(let y=6;y<PH;y+=7) for(let x=4;x<PW;x+=7) q.fillRect(x,y,2,2);   /* unlit bulbs */
   const lab=(t,x,y,sz)=>{ q.fillStyle='#e9ecef'; q.font=`700 ${sz*k}px "Arial Narrow", Arial, sans-serif`; q.textAlign='center'; q.textBaseline='middle'; q.fillText(t,x*k,y*k); };
   const led=(t,x,y,sz,al)=>{ if(t==null||t==='') return; lbLed(q,String(t).toUpperCase(),x*k,y*k,sz*k,al||'center'); };
+  if(d && d.dby){ const b=d.dby;   /* DW 2026-11-24: the derby on the Champions board */
+    lab('HOME RUN DERBY',150,13,14); lab(b.L,508,13,14); lab('PITCHES LEFT',150,88,13);
+    const nm=String(b.n||'').toUpperCase().slice(0,16), wN=lbLedW(nm,26*k), fit=Math.min(1,(400*k)/Math.max(1,wN)); q.save(); q.translate(14*k,48*k); q.scale(fit,1); led(nm,0,0,26,'left'); q.restore();
+    led(String(b.pts|0),508,50,40); if(!b.over) led(b.left+' OF '+b.tot,360,88,26);
+    lab('EXIT MPH',90,122,13); lab('LAUNCH',250,122,13); lab('LONGEST',420,122,13);
+    if(b.ev) led(b.ev,90,152,30); if(b.la!=='' && b.la!=null) led(String(b.la),250,152,30); if(b.long) led(b.long,420,152,30);
+    q.fillStyle='rgba(255,255,255,0.75)'; q.fillRect(0,0,PW,2*k); q.fillRect(0,PH-2*k,PW,2*k); q.fillRect(0,0,2*k,PH); q.fillRect(PW-2*k,0,2*k,PH); return pc; }
   const IX=[0,1,2,3,4,5,6,7,8,9].map(i=>183+i*25.4);
   IX.forEach((x,i)=>lab(String(i+1),x,13,13)); lab('R',461,13,14); lab('H',508,13,14); lab('E',553,13,14);
   lab('AVERAGE',69,118,13); lab('AT BAT',187,118,13); lab('BALL',264,118,13); lab('STRIKE',347,118,13); lab('OUT',421,118,13); lab('MPH',515,118,13);
@@ -5675,7 +5682,7 @@ function lbCompose(im,Q,V){ if(!im || !Q || !window.__lbData) return null;
   const c=document.createElement('canvas'); c.width=im.naturalWidth||im.width; c.height=im.naturalHeight||im.height; const g=c.getContext('2d'); g.drawImage(im,0,0); lbPut(g,lbPanel(window.__lbData),Q); const cc=window.__LBcardN&&window.__LBcard; if(V&&cc) lbPutQ(g,cc,V); return c; }
 let __lbLast=''; setInterval(()=>{ try{ if(typeof F3D==='undefined' || !F3D.ready || typeof S==='undefined') return;
   const tot=(i,k)=>TEAMS[i].lineup.reduce((a,p)=>a+((S.box[p.name]||{})[k]|0),0), b=curBatter(), L=line(b.conf||{});
-  const d={ls:boardLS(), hits:[tot(0,'H'),tot(1,'H')], err:[tot(0,'E'),tot(1,'E')], b:S.balls|0, s:S.strikes|0, o:Math.min(3,S.outs|0), mph:window.__lastEv||'', avg:(L.AVG&&L.AVG!=='—')?L.AVG:'', ab:(S.order%LINEUP.length)+1};
+  const d={ls:boardLS(), hits:[tot(0,'H'),tot(1,'H')], err:[tot(0,'E'),tot(1,'E')], b:S.balls|0, s:S.strikes|0, o:Math.min(3,S.outs|0), mph:window.__lastEv||'', avg:(L.AVG&&L.AVG!=='—')?L.AVG:'', ab:(S.order%LINEUP.length)+1, dby:window.__dbBoard?window.__dbBoard():null};
   const j=JSON.stringify(d)+'|'+(window.__LBcardN|0); if(j===__lbLast) return; __lbLast=j; window.__lbData=d; F3D.call('setLiveBoard', d);
   if(window.__bgBoard){ const c=lbPlate(); if(c){ window.__bgGen=c; IMG.field=c; } }
   if(window.__bgLiveBoard && IMG_BG_LIVE){ const c=lbCompose(window.__bgLiveClean,window.__bgLiveBoard,window.__bgLiveVb); if(c) IMG_BG_LIVE=c; } }catch(e){} }, 400);
@@ -6090,6 +6097,13 @@ function lbPanel(d){   /* the board's light panel as a picture: 582 x 182 photo 
   q.fillStyle='rgba(70,40,20,0.22)'; for(let y=6;y<PH;y+=7) for(let x=4;x<PW;x+=7) q.fillRect(x,y,2,2);   /* unlit bulbs */
   const lab=(t,x,y,sz)=>{ q.fillStyle='#e9ecef'; q.font=`700 ${sz*k}px "Arial Narrow", Arial, sans-serif`; q.textAlign='center'; q.textBaseline='middle'; q.fillText(t,x*k,y*k); };
   const led=(t,x,y,sz,al)=>{ if(t==null||t==='') return; lbLed(q,String(t).toUpperCase(),x*k,y*k,sz*k,al||'center'); };
+  if(d && d.dby){ const b=d.dby;   /* DW 2026-11-24: the derby on the Champions board */
+    lab('HOME RUN DERBY',150,13,14); lab(b.L,508,13,14); lab('PITCHES LEFT',150,88,13);
+    const nm=String(b.n||'').toUpperCase().slice(0,16), wN=lbLedW(nm,26*k), fit=Math.min(1,(400*k)/Math.max(1,wN)); q.save(); q.translate(14*k,48*k); q.scale(fit,1); led(nm,0,0,26,'left'); q.restore();
+    led(String(b.pts|0),508,50,40); if(!b.over) led(b.left+' OF '+b.tot,360,88,26);
+    lab('EXIT MPH',90,122,13); lab('LAUNCH',250,122,13); lab('LONGEST',420,122,13);
+    if(b.ev) led(b.ev,90,152,30); if(b.la!=='' && b.la!=null) led(String(b.la),250,152,30); if(b.long) led(b.long,420,152,30);
+    q.fillStyle='rgba(255,255,255,0.75)'; q.fillRect(0,0,PW,2*k); q.fillRect(0,PH-2*k,PW,2*k); q.fillRect(0,0,2*k,PH); q.fillRect(PW-2*k,0,2*k,PH); return pc; }
   const IX=[0,1,2,3,4,5,6,7,8,9].map(i=>183+i*25.4);
   IX.forEach((x,i)=>lab(String(i+1),x,13,13)); lab('R',461,13,14); lab('H',508,13,14); lab('E',553,13,14);
   lab('AVERAGE',69,118,13); lab('AT BAT',187,118,13); lab('BALL',264,118,13); lab('STRIKE',347,118,13); lab('OUT',421,118,13); lab('MPH',515,118,13);
@@ -9965,7 +9979,7 @@ addEventListener('click',e=>{ if(!DEF.on) return; const P=FIELDERS.play; if(!P||
   let best=null, bd=70; for(const f of FIELDERS.list){ if(f.isRun||f.kind==='R'||f.kind==='BR'||!f.mats) continue; const v=W(f.x,f.y,3).project(camera), px=rc.left+(v.x+1)/2*rc.width, py=rc.top+(1-v.y)/2*rc.height, d=Math.hypot(px-e.clientX,py-e.clientY); if(d<bd){ bd=d; best=f; } } if(best) defGive(best); });
 function hit(ev,la,spray,opts={}){
   if(DEF.on) setPractice(false);
-  flight=simulate(ev,la,spray,false,WIND.mph,WIND.dir,opts); try{ if(!flight.hr && !flight.foul && (WIND.mph||0)>0){ const g0=simulate(ev,la,spray,false,0,0,opts); if(g0 && g0.hr) flight.windHeld=true; } }catch(e){} flight.start=performance.now(); try{ chStop(flight); }catch(e){ console.error('chStop',e); } try{ lScreen(!!window.__derbyOn); lsStop(flight); }catch(e){ console.error('lscreen',e); } try{ hillBounce(flight); }catch(e){ console.error('hillBounce',e); } try{ if(/^ssp/.test(PARK_ID)) sspCourtBounce(flight); }catch(e){ console.error('courts',e); }   /* DW 2026-11-22: would it have gone out with no wind? */ trailPts=[];
+  flight=simulate(ev,la,spray,false,WIND.mph,WIND.dir,opts); window.__lastFl=flight; try{ if(!flight.hr && !flight.foul && (WIND.mph||0)>0){ const g0=simulate(ev,la,spray,false,0,0,opts); if(g0 && g0.hr) flight.windHeld=true; } }catch(e){} flight.start=performance.now(); try{ chStop(flight); }catch(e){ console.error('chStop',e); } try{ lScreen(!!window.__derbyOn); lsStop(flight); }catch(e){ console.error('lscreen',e); } try{ hillBounce(flight); }catch(e){ console.error('hillBounce',e); } try{ if(/^ssp/.test(PARK_ID)) sspCourtBounce(flight); }catch(e){ console.error('courts',e); }   /* DW 2026-11-22: would it have gone out with no wind? */ trailPts=[];
   window.__errL=[]; resetFielders(); FIELDERS.play=(FIELDERS.on&&!window.__derbyOn)?planPlay(flight):null; if(window.__bpOn) try{ flight.bp=bpCall(flight,FIELDERS.play); }catch(e){ console.error('bp',e); } window.__playLive=!!(FIELDERS.play&&(!FIELDERS.play.passive||FIELDERS.play.hrLive||FIELDERS.play.foulLive));
   ball.visible=true; ballShadow.visible=true; showResult(null);
 }
@@ -15606,7 +15620,7 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
    +'<div id="hsBP" class="hsStep"><b>Batting practice</b><label class="hsRow"><span>Team</span><select id="hsBpTeam">'+TEAMS.map((t,i)=>'<option value="'+i+'">'+esc(t.name)+'</option>').join('')+'</select></label><label class="hsRow"><span>Hitter</span><select id="hsBpBat"></select></label><label class="hsRow"><span>Defense</span><select id="hsBpDef">'+names.map(n=>'<option>'+esc(n)+'</option>').join('')+'</select></label>'
      +'<div class="hsOpts" style="margin-top:6px">'+opt('hsBpP','bp','BP pitching','Strike-Mid every pitch, a tumbler, with his normal misses',LS('sbBpPitch')!=='real')+opt('hsBpP','real','Real pitching','The pitcher works you like in a game, trying to get you out',LS('sbBpPitch')==='real')+'</div>'
      +'<div class="hsNote">Take or swing at any pitch; every at bat starts 1-1 like a game, so a walk or a strikeout can happen. Each ball gets one call (fly out, pop out, foul out, ground out, single, double, triple, home run and how far), then the next pitch comes right away. No scoreboard. His stats, with RP7, add up until you press Quit BP.</div></div>'
-   +'<div id="hsDerby" class="hsStep"><b>Derby hitters</b><div><button type="button" class="hsSmall" id="hsAll">All</button><button type="button" class="hsSmall" id="hsNone">None</button><span class="hsNote" id="hsDN"></span></div><div class="hsPl">'+plList+'</div><label class="hsRow"><span>Make round 2</span><select id="hsCut2"></select></label><label class="hsRow"><span>Make the finals</span><select id="hsCutF"></select></label><div class="hsNote">They hit in the order you tick them. Each hitter gets 10 pitches; he can take 2 without losing one. The pitcher throws a tumbler down the middle every time, with his normal misses. Home run attempts carry 10 ft farther.</div></div>'
+   +'<div id="hsDerby" class="hsStep"><b>Derby hitters</b><div><button type="button" class="hsSmall" id="hsAll">All</button><button type="button" class="hsSmall" id="hsNone">None</button><span class="hsNote" id="hsDN"></span></div><div class="hsPl">'+plList+'</div><label class="hsRow"><span>Make round 2</span><select id="hsCut2"></select></label><label class="hsRow"><span>Make the finals</span><select id="hsCutF"></select></label><div class="hsNote">They hit in the order you tick them. Each hitter gets 12 pitches; he can take 2 without losing one. The pitcher throws a tumbler down the middle every time, with his normal misses. Home run attempts carry 10 ft farther.</div></div>'
    +'<div id="hsGameOnly"><div class="hsStep"><b>1. Mode</b><div class="hsOpts">'
      +opt('hsMode','online','1) Play vs a real opponent over the internet','Coming next: needs the game server',curMode==='online')
      +opt('hsMode','cpu','2) Play vs the computer','You bat for your team, then pitch and field against the computer',curMode==='cpu')
@@ -15707,6 +15721,196 @@ pickTeams=function(){ showHome('new'); };   /* New game (Menu and the end-of-gam
 setTimeout(()=>{ try{ const ng=$('btnNewGame'); if(ng && !$('btnHome')){ const b=document.createElement('button'); b.id='btnHome'; b.type='button'; b.className=ng.className; b.textContent='Home screen'; b.title='Back to the opening screen: resume, or start a new game with a different mode, teams, field or wind'; b.onclick=e=>{ e.target.blur(); showHome('menu'); }; ng.after(b); } }catch(e){} },600);
 /* a picked wind from the home screen: speed and changes go on after the page loads */
 try{ const pw=JSON.parse(sessionStorage.getItem('sbHomeWind')||'null'); if(pw){ sessionStorage.removeItem('sbHomeWind'); setTimeout(()=>{ try{ const wr=$('windRange'), wc=$('wxChange'); wr.value=pw.mph; wr.dispatchEvent(new Event('input')); wc.value=pw.chg; wc.dispatchEvent(new Event('input')); }catch(e){} },300); } }catch(e){}
+/* derby2_2026-11-24 (DW 2026-11-24): Home Run Derby options.
+   - Points: a home run = 1 point. Moneyball option: one pitch per hitter is the moneyball; a home run on it = 2 points.
+   - Champions bonus option (Champions Stadium only): hit the flags or the center field wall, or clear Helmer's Wall = +1;
+     clear the center field wall or the flags = +2.
+   - Same pitches option (on by default): every hitter in a round gets the same pitches, in a different order.
+   - Pitches per hitter (12 by default).
+   - Formats: Rounds (the old cuts), Bracket (4, 8, 16, 32 or 64; head to head, byes for missing seeds), Teams (2, 4, 8 or 10 hitters a side).
+   - Every tie that decides something: 3 swings each, then sudden death (1 swing each) until it is settled.
+   - The box, the sign and the Champions scoreboard show the hitter, pitches left of the total, points, exit speed, launch angle and his longest. */
+(function(){
+if(typeof DB==='undefined') return;
+const LSg=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, LSs=(k,v)=>{ try{ if(v==null) localStorage.removeItem(k); else localStorage.setItem(k,String(v)); }catch(e){} };
+const rngOf=a=>()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+const shuffle=(arr,r)=>{ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const CF_NAMES=["the clock tower","the clock","the scoreboard","the batter's eye","the video board"];
+const isCh=()=>/^cs/.test(window.PARK_ID||(typeof PARK_ID!=='undefined'?PARK_ID:''));
+window.__dbBonusOn=()=>{ const d=DB.st; return !!(DB.on && d && d.bonus && isCh()); };
+/* the Champions bonus for one batted ball: called from the park with the flight */
+window.__dbChBonus=function(fl){ try{ if(!window.__dbBonusOn() || !fl || !fl.samples || !window.__chCleared) return null;
+  const cl=window.__chCleared(fl.samples.map(q=>[q.x,q.y,q.h])), ht=window.__chHit?window.__chHit(fl.samples):null, hn=ht&&ht.name;
+  if(cl && (cl==='the flags' || CF_NAMES.includes(cl))) return {pts:2, what:'over '+cl};
+  if(cl==="Helmer's Wall") return {pts:1, what:"over Helmer's Wall"};
+  if(hn && (hn==='the flags' || hn==='a flag pole' || CF_NAMES.includes(hn))) return {pts:1, what:'off '+hn};
+  return null; }catch(e){ return null; } };
+
+/* every player by name, from the club rosters (the derby rewrites the first lineup, so look them up here) */
+const ALLP={}, POOL=[];
+TEAMS.forEach((t,ti)=>{ const names=[]; const add=v=>{ if(v && v.name && !ALLP[v.name]){ ALLP[v.name]=v; } if(v && v.name && !names.includes(v.name)) names.push(v.name); };
+  (ti>0 && t.lineup?t.lineup:[]).forEach(add); Object.keys(t.roster||{}).filter(k=>k[0]!=='_').forEach(k=>add(t.roster[k])); POOL[ti]=names; });
+const _dp=dbPlayer; dbPlayer=function(n){ return ALLP[n]||_dp(n); };
+const N0=()=>{ const m=/[?&]dbn=(\d+)/.exec(location.search); return m?+m[1]:(+LSg('sbDbN')||12); };
+function dbLim(d,q){ return q.lim||d.N||N0(); }
+const ptsL=d=>(d.money||d.bonus)?'PTS':'HR';
+const P=q=>(q.pts!=null?q.pts:(q.hr|0))|0;
+dbRank=function(list){ return [...list].sort((a,c)=>P(c)-P(a)||(c.long|0)-(a.long|0)||dbAvg(c)-dbAvg(a)); };
+const _rn=dbRoundName; dbRoundName=function(d,r){ if(d && d.tb) return d.tb.level>1?'Sudden death':'Tiebreaker'; if(d && d.rname) return d.rname; return _rn(d,r); };
+const brName=n=>n<=2?'Finals':n===4?'Semifinals':n===8?'Quarterfinals':'Round of '+n;
+function newQ(d,n,lim){ const q=dbNew(n); q.pts=0; q.pn=0; if(lim) q.lim=lim; const N=dbLim(d,q);
+  q.ord=d.same&&!lim?shuffle([...Array(N).keys()],Math.random):null; q.mi=d.money&&!lim?Math.floor(Math.random()*N):-1; return q; }
+function newSet(d){ d.set=Array.from({length:d.N},()=>Math.floor(Math.random()*2e9)); d.setMoney=Math.floor(Math.random()*d.N); }
+function setLineup(d){ const ps=d.list.map(q=>dbPlayer(q.name)).filter(Boolean); TEAMS[0].lineup=ps; LINEUP.splice(0,LINEUP.length,...ps); S.order=d.i; S.balls=1; S.strikes=1; try{ setUpBatter(false); }catch(e){} }
+function startList(d,names,lim){ d.list=names.map(n=>newQ(d,n,lim)); d.i=0; if(!lim) newSet(d); setLineup(d); dbSave(); dbHud(); }
+const pitchesTo=(d,q)=>q.pn|0;
+function isMoney(d,q,idx){ if(!d.money||q.lim) return false; if(d.same && q.ord) return q.ord[idx]===d.setMoney; return idx===q.mi; }
+
+/* standard bracket order: 1 v 16, 8 v 9, ... so the top two seeds can only meet in the final */
+function seedOrder(n){ let o=[1]; while(o.length<n){ const m=o.length*2+1; o=o.flatMap(s=>[s,m-s]); } return o; }
+function initFmt(d){ d.fmt=LSg('sbDbFmt')||'rounds'; d.N=N0(); d.same=LSg('sbDbSame')!=='0'; d.money=LSg('sbDbMoney')==='1'; d.bonus=LSg('sbDbBonus')==='1';
+  if(d.fmt==='bracket'){ let size=+LSg('sbDbBr')||8; const all=d.all.slice(); while(size>4 && size/2>=all.length) size/=2;   /* never more than half byes */
+    const seeds=all.slice(0,size), so=seedOrder(size), pairs=[]; for(let k=0;k<size;k+=2){ const a=seeds[so[k]-1]||null, b=seeds[so[k+1]-1]||null; pairs.push([a,b]); }
+    d.size=size; d.pairs=pairs; d.rname=brName(size); d.plan=[size]; d.round=0; const names=[]; for(const [a,b] of pairs){ if(a&&b){ names.push(b,a); } } startList(d,names); return; }
+  if(d.fmt==='teams'){ const n=+LSg('sbDbTm')||4, picked=d.all;
+    d.teams=TEAMS.slice(0,2).map((t,ti)=>{ const pool=POOL[ti]||[], mine=picked.filter(x=>pool.includes(x)); const mem=mine.concat(pool.filter(x=>!mine.includes(x))).slice(0,n); return {name:t.name, mem}; });
+    const names=[]; for(let k=0;k<n;k++) for(const t of d.teams) if(t.mem[k]) names.push(t.mem[k]); d.rname='Team derby'; d.plan=[names.length]; d.round=0; startList(d,names); return; }
+  d.rname=null; d.list.forEach((q,k)=>{ d.list[k]=Object.assign(newQ(d,q.name),{}); }); newSet(d); setLineup(d); dbSave(); }
+
+const _setup=window.__derbySetup; window.__derbySetup=function(){ const r=_setup.apply(this,arguments); try{ const d=DB.st; if(DB.on && d && !d.fmt){ initFmt(d); } if(DB.on && d) setTimeout(()=>{ try{ dbHud(); }catch(e){} },120); }catch(e){ console.error('derby2',e); } return r; };
+if(DB.on && DB.st && !DB.st.fmt){ try{ initFmt(DB.st); }catch(e){ console.error('derby2',e); } }
+
+/* the same pitches: the pitch (where it goes, its arc, his misses) comes from the round's pitch list, in this hitter's own order */
+const _tp=throwPitch; throwPitch=function(){ const d=DB.st; if(!DB.on || !d || d.over || S.pitchInFlight || S.playing) return _tp.apply(this,arguments);
+  const q=d.list[d.i]; if(!q) return _tp.apply(this,arguments); const idx=pitchesTo(d,q), N=dbLim(d,q), money=isMoney(d,q,idx);
+  let seed=null; if(d.same && !q.lim && q.ord && idx<N && d.set) seed=d.set[q.ord[idx]];
+  const mr=Math.random; if(seed!=null) Math.random=rngOf(seed);
+  let r; try{ r=_tp.apply(this,arguments); } finally { Math.random=mr; }
+  if(S.pitchInFlight){ q.pn=idx+1; DB.moneyNow=money; if(money){ try{ ANN.say('Here comes the moneyball!', true); }catch(e){} } dbHud(); }
+  return r; };
+const _ar=applyRunners; applyRunners=function(res){ try{ if(DB.on && res && res.hr) DB.hrNow=true; }catch(e){} return _ar.apply(this,arguments); };
+
+dbTick=function(){ const d=DB.st; if(!DB.on||!d||d.over) return; window.__autoDef=true; AUTOPITCH=performance.now()>DB.wait;
+  if(ball && ball!==DB.cur && !ball.done){ DB.cur=ball; DB.strike=null; DB.contact=null; DB.hrNow=false; }
+  if(DB.cur && DB.strike===null && ball===DB.cur && pendingResult && pendingResult.flight===ball.flight) DB.strike=!!(pendingResult.result||{}).isStrike;
+  if(!DB.cur || ball || S.pitchInFlight || S.playing || window.__playLive){ DB.idle=0; return; }
+  if(!DB.idle){ DB.idle=performance.now(); return; } if(performance.now()-DB.idle<1200) return; DB.idle=0;
+  const p=d.list[d.i], swung=DB.swung===DB.cur, hitIt=DB.contact===DB.cur; DB.cur=null; DB.swung=null; if(!p) return;
+  if(swung || hitIt){ p.sws=(p.sws|0)+1; if(DB.strike) p.sws_k=(p.sws_k|0)+1; } DB.strike=null; DB.contact=null;
+  if(swung || hitIt) p.sw=(p.sw|0)+1; else { p.tkAll=(p.tkAll|0)+1; if((p.tk|0)>=2) p.sw=(p.sw|0)+1; else p.tk=(p.tk|0)+1; }
+  let g=0; const said=[]; const fl=hitIt?window.__lastFl:null;
+  if(DB.hrNow){ g+=DB.moneyNow?2:1; if(DB.moneyNow) said.push('Moneyball! Two points!'); }
+  if(fl){ p.lev=fl.ev|0; p.lla=Math.round(fl.la); const b=window.__dbChBonus(fl); if(b){ g+=b.pts; p.bon=(p.bon|0)+b.pts; said.push((b.pts>1?b.pts+' bonus points, ':'Bonus point, ')+b.what+'!'); } }
+  DB.hrNow=false; DB.moneyNow=false; p.pts=(p.pts|0)+g; if(said.length) setTimeout(()=>{ try{ ANN.say(said.join(' '), true); }catch(e){} },900);
+  S.outs=0; S.bases=[null,null,null,null]; S.balls=1; S.strikes=1; S.hrs=0; if(S.order!==d.i){ S.order=d.i; setUpBatter(false); } try{ renderCount(); }catch(e){}
+  dbSave(); dbHud(); setTimeout(()=>{ try{ dbHud(); }catch(e){} },400);
+  if((p.sw|0)>=dbLim(d,p)){ dbCard(p.name, P(p)+' '+(ptsL(d)==='PTS'?'POINT':'HOME RUN')+(P(p)===1?'':'S'), 2800); setTimeout(dbNext,2900); DB.wait=performance.now()+6000; } };
+
+/* ---- what happens when everyone in the current list has hit ---- */
+dbNext=function(){ const d=DB.st; d.i++; if(d.i<d.list.length){ S.order=d.i; S.balls=1; S.strikes=1; setUpBatter(false); dbSave(); setTimeout(dbHud,60); const p=d.list[d.i]; try{ ANN.say('Now up, '+p.name+'.', true); }catch(e){} dbCard(d.tb?(d.tb.level>1?'SUDDEN DEATH':'TIEBREAKER'):'NOW UP', p.name, 2600); return; }
+  if(d.tb) return tbDone(d);
+  d.past.push({label:dbRoundName(d,d.round)||'Derby', list:d.list});
+  const byName=n=>d.list.find(q=>q.name===n);
+  if(d.fmt==='bracket'){ const groups=d.pairs.map(([a,b])=>(a&&b)?{cands:[a,b],k:1}:{cands:[a||b].filter(Boolean),k:1}); return resolve(d,groups,'pairs'); }
+  if(d.fmt==='teams'){ const tot=d.teams.map(t=>t.mem.reduce((s,n)=>s+P(byName(n)||{}),0)); d.teamTot=tot;
+    if(tot[0]!==tot[1]) return finish(d,[d.teams[tot[0]>tot[1]?0:1].name],true);
+    const tops=d.teams.map(t=>dbRank(t.mem.map(byName).filter(Boolean))[0].name); try{ ANN.say('The teams are tied! Their top hitters break it.', true); }catch(e){}
+    return resolve(d,[{cands:tops,k:1}],'team'); }
+  if(d.round<d.plan.length-1) return resolve(d,[{cands:d.list.map(q=>q.name),k:d.plan[d.round+1]}],'cut');
+  return resolve(d,[{cands:d.list.map(q=>q.name),k:1}],'final'); };
+
+function resolve(d,groups,kind){ const sc=n=>P(d.past[d.past.length-1].list.find(q=>q.name===n)||{});
+  for(const g of groups){ const s=[...g.cands].sort((a,b)=>sc(b)-sc(a)); if(s.length<=g.k){ g.adv=s; g.tied=null; continue; }
+    const thr=sc(s[g.k-1]), above=s.filter(n=>sc(n)>thr), tied=s.filter(n=>sc(n)===thr);
+    if(above.length+tied.length===g.k){ g.adv=above.concat(tied); g.tied=null; } else { g.adv=above; g.tied=tied; g.spots=g.k-above.length; } }
+  if(groups.some(g=>g.tied)){ d.tb={level:1, kind, groups}; const names=groups.flatMap(g=>g.tied||[]);
+    try{ ANN.say('Tiebreaker! Three swings each: '+names.join(', ')+'.', true); }catch(e){} dbCard('TIEBREAKER · 3 SWINGS', names.join(' · '), 4500); startList(d,names,3); return; }
+  advance(d,kind,groups); }
+function tbDone(d){ const T=d.tb, sc=n=>P(d.list.find(q=>q.name===n)||{}), lg=n=>((d.list.find(q=>q.name===n)||{}).long|0);
+  d.tbPast=(d.tbPast||[]).concat([{label:dbRoundName(d,d.round), list:d.list}]);
+  for(const g of T.groups){ if(!g.tied) continue; const s=[...g.tied].sort((a,b)=>sc(b)-sc(a)||(T.level>=12?lg(b)-lg(a):0)); const thr=sc(s[g.spots-1]);
+    const above=s.filter(n=>sc(n)>thr), tied=s.filter(n=>sc(n)===thr);
+    if(T.level>=12){ g.adv=g.adv.concat(s.slice(0,g.spots)); g.tied=null; continue; }   /* safety: after 11 rounds of sudden death, the longest home run */
+    if(above.length+tied.length===g.spots){ g.adv=g.adv.concat(above,tied); g.tied=null; } else { g.adv=g.adv.concat(above); g.tied=tied; g.spots-=above.length; } }
+  if(T.groups.some(g=>g.tied)){ T.level++; const names=T.groups.flatMap(g=>g.tied||[]); try{ ANN.say('Still tied! Sudden death: one swing each.', true); }catch(e){} dbCard('SUDDEN DEATH · 1 SWING', names.join(' · '), 4000); startList(d,names,1); return; }
+  d.tb=null; advance(d,T.kind,T.groups); }
+function advance(d,kind,groups){ const last=d.past[d.past.length-1];
+  if(kind==='final') return finish(d,[groups[0].adv[0]]);
+  if(kind==='team'){ const w=groups[0].adv[0], t=d.teams.find(t=>t.mem.includes(w)); return finish(d,[t?t.name:w],true); }
+  if(kind==='cut'){ const adv=groups[0].adv, old=last.list; const keep=adv.map(n=>old.find(q=>q.name===n)).sort((a,c)=>P(a)-P(c)||(a.long|0)-(c.long|0));   /* fewest first, like the real derby */
+    d.round++; const rn=_rn(d,d.round); startList(d,keep.map(q=>q.name)); try{ ANN.say(rn+'! '+d.list.map(q=>q.name).join(', ')+'.', true); }catch(e){} dbCard(rn.toUpperCase(), d.list.map(q=>q.name).join(' · '), 4500); return; }
+  if(kind==='pairs'){ const win=groups.map(g=>g.adv[0]).filter(Boolean); if(win.length<=1) return finish(d,win);
+    const pairs=[]; for(let k=0;k<win.length;k+=2) pairs.push([win[k],win[k+1]||null]); d.pairs=pairs; d.round++; d.plan.push(win.length); d.rname=brName(win.length);
+    const names=[]; for(const [a,b] of pairs){ if(a&&b){ const sa=d.all.indexOf(a), sb=d.all.indexOf(b); if(sa<sb) names.push(b,a); else names.push(a,b); } }   /* the lower seed hits first */
+    startList(d,names); try{ ANN.say(d.rname+'! '+pairs.map(p=>p.filter(Boolean).join(' against ')).join('. ')+'.', true); }catch(e){} dbCard(d.rname.toUpperCase(), pairs.map(p=>p.filter(Boolean).join(' vs ')).join(' · '), 5000); return; } }
+function finish(d,champs,team){ d.champ=champs; d.champTeam=!!team; d.over=true; dbSave(); dbHud(); dbEnd(); }
+
+/* the end card: the champion(s) come from the derby itself (tiebreakers included) */
+const _end=dbEnd; dbEnd=function(){ const d=DB.st; if(!d.champ){ return _end.apply(this,arguments); }
+  const all=d.past.map(R=>R.list).concat([d.list]).flat(), saveList=d.list, saveP=d.past;
+  const champ=d.champ[0], fin=[...d.past].reverse().find(R=>R.list.some(q=>q.name===champ)), cq=fin&&fin.list.find(q=>q.name===champ);
+  if(!d.champTeam){ const others=(fin?fin.list:d.list).filter(q=>q.name!==champ); d.list=[cq||dbNew(champ)].concat(others); if(fin && fin!==d.past[d.past.length-1]) {} }
+  const rk0=dbRank; if(!d.champTeam) dbRank=list=>{ const r=rk0(list); const i=r.findIndex(q=>q.name===champ); if(i>0 && list===d.list){ r.unshift(r.splice(i,1)[0]); } return r; };
+  try{ _end.apply(this,arguments); } finally { dbRank=rk0; d.list=saveList; d.past=saveP; }
+  try{ const w=$('teamPick'); const ch=w&&w.querySelector('.dbChamp'); if(ch){ ch.textContent=d.champTeam?(champ+' wins the team Home Run Derby!'+(d.teamTot?' ('+d.teamTot.join(' to ')+')':'')):('The Home Run Derby Champion is '+champ+'!'); }
+    if(w){ const sub=w.querySelector('.hsSub'); if(sub && !d.champTeam && cq) sub.textContent=champ+': '+P(cq)+' '+(ptsL(d)==='PTS'?'point':'home run')+(P(cq)===1?'':'s')+(cq.long?', longest '+cq.long+' ft':'');
+      if(d.champTeam && d.teams){ const sub2=w.querySelector('.hsSub'); if(sub2) sub2.innerHTML=d.teams.map((t,i)=>t.name+' '+((d.teamTot||[])[i]|0)).join(' · '); }
+      w.querySelectorAll('table')[0] && w.querySelectorAll('table')[0].querySelectorAll('tr').forEach(tr=>{ const c=tr.children; if(c.length===7 && /^HR$/.test((c[2].textContent||'').trim()) && ptsL(d)==='PTS') c[2].textContent='PTS'; }); } }catch(e){}
+  try{ ANN.say(d.champTeam?(champ+' wins the team Home Run Derby!'):('The Home Run Derby Champion is '+champ+'!'), true); }catch(e){} };
+
+/* ---- the box ---- */
+const fmtLast=q=>q.lev?(q.lev+' mph · '+q.lla+'°'):'-';
+dbHud=function(){ let h=$('derbyHud'); if(!h){ h=document.createElement('div'); h.id='derbyHud'; document.body.appendChild(h); dbDrag(h); } const d=DB.st; if(!d) return; const p=d.list[d.i]||{};
+  h.classList.toggle('lefty', dbLefty()); dbPlace(h); const rn=dbRoundName(d,d.round), y=v=>'<b>'+v+'</b>', L=ptsL(d), N=dbLim(d,p), left=Math.max(0,N-(p.sw|0));
+  const moneyNext=!d.over && p.name && isMoney(d,p,pitchesTo(d,p));
+  let html='<h3>HOME RUN DERBY'+(rn?' · '+rn.toUpperCase():'')+'</h3>';
+  if(d.over) html+='<div class="now">Final'+(d.champ?': '+d.champ[0]:'')+'</div>';
+  else html+='<div class="now">'+p.name+'</div><div><span class="big">'+P(p)+'</span> '+L+' · '+left+' of '+N+(p.lim?' swings':' pitches')+' left · '+Math.max(0,2-(p.tk|0))+' free takes</div>'
+    +(moneyNext?'<div class="dbMoney">MONEYBALL NEXT: a home run is worth 2</div>':'')
+    +'<div class="st">Last ball '+y(fmtLast(p))+' · Longest '+y(p.long?p.long+' ft':'-')+'<br>Strikes hit '+y(dbPct(p.sws_k|0,p.sws|0))+' · Takes '+y(p.tkAll|0)+' · Avg HR '+y(dbAvg(p)?dbAvg(p)+' ft':'-')+(p.bon?' · Bonus '+y(p.bon):'')+'</div>';
+  if(d.fmt==='teams' && d.teams){ const tot=d.teams.map(t=>t.mem.reduce((s,n)=>{ const q=d.list.find(x=>x.name===n)||(d.past[0]&&d.past[0].list.find(x=>x.name===n)); return s+(q?P(q):0); },0)); html+='<div class="dbTeams">'+d.teams.map((t,i)=>t.name+' <b>'+tot[i]+'</b>').join(' · ')+'</div>'; }
+  html+='<table><tr class="hd"><td></td><td>'+L+'</td><td>Long</td></tr>';
+  d.list.forEach((q,k)=>{ const done=(q.sw|0)>=dbLim(d,q)||k<d.i||d.over, cur=k===d.i&&!d.over; if(d.fmt==='bracket' && !d.tb && k%2===0 && k>0) html+='<tr class="sep"><td colspan="3"></td></tr>';
+    html+='<tr class="'+(cur?'cur':(done?'done':''))+'"><td>'+(k+1)+'. '+q.name+(d.fmt==='bracket'&&!d.tb?' <span>('+(d.all.indexOf(q.name)+1)+')</span>':'')+'</td><td>'+(done||cur?P(q):'-')+'</td><td>'+(q.long?q.long:'')+'</td></tr>'; });
+  html+=dbOut(d).map(o=>'<tr class="out"><td>'+o.q.name+' <span>out '+o.lab+'</span></td><td>'+P(o.q)+'</td><td>'+(o.q.long?o.q.long:'')+'</td></tr>').join('')+'</table>'
+   +'<div class="dbBtns"><button type="button" id="dbPick">Pick up balls</button></div>';
+  h.innerHTML=html; const pk=h.querySelector('#dbPick'); if(pk) pk.onclick=e=>{ e.stopPropagation(); try{ F3D.call('clearHrBalls'); }catch(_){} };
+  try{ window.__redrawBug && window.__redrawBug(); }catch(e){} };
+{ const st=document.createElement('style'); st.textContent='#derbyHud .dbMoney{margin:3px 0;padding:2px 8px;border-radius:6px;background:#1e7a3a;color:#fff;font:700 13px Inter,system-ui,sans-serif;display:inline-block}#derbyHud .dbTeams{margin:4px 0;font:600 14px Inter,system-ui,sans-serif}#derbyHud .dbTeams b{color:#ffe600}#derbyHud tr.sep td{height:4px;border-top:1px solid rgba(255,255,255,.25)}#derbyHud td span{opacity:.6;font-size:11px}'; document.head.appendChild(st); }
+
+/* ---- the sign over the video board ---- */
+window.__derbyBug=function(c,bf){ const g=c.getContext('2d'), W=c.width, H=c.height, d=DB.st; g.fillStyle='#05070a'; g.fillRect(0,0,W,H); g.textBaseline='middle';
+  const p=d&&d.list[d.i], rn=d?dbRoundName(d,d.round):''; g.fillStyle='#ffd23c'; g.textAlign='left'; g.font=bf(Math.round(H*0.42),800); g.fillText('HR DERBY'+(rn?' · '+rn.toUpperCase():''),H*0.25,H*0.52);
+  if(!d) return; g.textAlign='center'; g.fillStyle='#fff'; g.font=bf(Math.round(H*0.42),800);
+  g.fillText(d.over?('CHAMPION: '+String(d.champ?d.champ[0]:(dbRank(d.list)[0]||{}).name||'').toUpperCase()):(p?p.name.toUpperCase()+'  ·  '+Math.max(0,dbLim(d,p)-(p.sw|0))+' OF '+dbLim(d,p)+' LEFT':''),W*0.56,H*0.52);
+  if(!d.over && p){ g.textAlign='right'; g.fillStyle='#ffd23c'; g.font=bf(Math.round(H*0.62),800); g.fillText(String(P(p)),W-H*1.25,H*0.54); g.fillStyle='#fff'; g.font=bf(Math.round(H*0.3),700); g.fillText(ptsL(d),W-H*0.3,H*0.56); } };
+
+/* ---- the Champions scoreboard: hitter, pitches left of the total, points, exit speed, launch angle, longest ---- */
+window.__dbBoard=function(){ const d=DB.st; if(!DB.on||!d) return null; const p=d.list[d.i]||{}; const N=dbLim(d,p);
+  return {n:d.over?('CHAMP '+String(d.champ?d.champ[0]:'')):String(p.name||''), left:Math.max(0,N-(p.sw|0)), tot:N, pts:P(p), ev:p.lev||'', la:p.lev?p.lla:'', long:p.long||'', L:ptsL(d), over:!!d.over}; };
+
+/* ---- home screen options ---- */
+function dbOpts(){ const wrap=$('hsDerby'); if(!wrap || wrap.querySelector('#hsDbFmt')) return; const cutF=$('hsCutF'); const anchor=cutF&&cutF.closest('label'); if(!anchor) return;
+  const sel=(id,label,opts,val)=>'<label class="hsRow" id="'+id+'Row"><span>'+label+'</span><select id="'+id+'">'+opts.map(([v,t])=>'<option value="'+v+'"'+(String(v)===String(val)?' selected':'')+'>'+t+'</option>').join('')+'</select></label>';
+  const chk=(id,label,on,title)=>'<label class="hsRow" id="'+id+'Row" title="'+title+'"><span>'+label+'</span><input type="checkbox" id="'+id+'"'+(on?' checked':'')+' style="width:auto;min-width:0"></label>';
+  const box=document.createElement('div'); box.id='hsDbOpts';
+  box.innerHTML=sel('hsDbFmt','Format',[['rounds','Rounds (top hitters move on)'],['bracket','Bracket (head to head)'],['teams','Teams (Dan Smith vs Resmondo)']],LSg('sbDbFmt')||'rounds')
+   +sel('hsDbBr','Bracket size',[[4,'4 hitters'],[8,'8 hitters'],[16,'16 hitters'],[32,'32 hitters'],[64,'64 hitters']],LSg('sbDbBr')||8)
+   +sel('hsDbTm','Hitters per team',[[2,'2'],[4,'4'],[8,'8'],[10,'10']],LSg('sbDbTm')||4)
+   +sel('hsDbN','Pitches per hitter',[[8,'8'],[10,'10'],[12,'12'],[15,'15'],[20,'20']],LSg('sbDbN')||12)
+   +chk('hsDbSame','Same pitches for everyone',LSg('sbDbSame')!=='0','Every hitter in a round gets the same pitches, just not in the same order')
+   +chk('hsDbMoney','Moneyball (worth 2)',LSg('sbDbMoney')==='1','One pitch to each hitter is the moneyball: a home run on it is worth 2 points')
+   +chk('hsDbBonus','Champions bonus points',LSg('sbDbBonus')==='1','Champions Stadium only: hit the flags or the center field wall, or clear Helmer\'s Wall = 1 point; clear the center field wall or the flags = 2 points');
+  anchor.after(box);
+  const note=wrap.querySelector('.hsNote:last-of-type'); const fixNote=()=>{ const n=$('hsDbN').value; wrap.querySelectorAll('.hsNote').forEach(x=>{ x.innerHTML=x.innerHTML.replace(/Each hitter gets \d+ pitches/,'Each hitter gets '+n+' pitches'); }); };
+  const sync=()=>{ const f=$('hsDbFmt').value; $('hsDbBrRow').classList.toggle('hide',f!=='bracket'); $('hsDbTmRow').classList.toggle('hide',f!=='teams');
+    for(const id of ['hsCut2','hsCutF']){ const l=$(id)&&$(id).closest('label'); if(l) l.classList.toggle('hide',f!=='rounds'); }
+    LSs('sbDbFmt',f); LSs('sbDbBr',$('hsDbBr').value); LSs('sbDbTm',$('hsDbTm').value); LSs('sbDbN',$('hsDbN').value); LSs('sbDbSame',$('hsDbSame').checked?'1':'0'); LSs('sbDbMoney',$('hsDbMoney').checked?'1':'0'); LSs('sbDbBonus',$('hsDbBonus').checked?'1':'0'); fixNote(); };
+  box.addEventListener('change',sync); box.addEventListener('input',sync); sync(); }
+const _sh=showHome; showHome=function(){ const r=_sh.apply(this,arguments); try{ dbOpts(); }catch(e){ console.error('derby2',e); } return r; };
+setTimeout(()=>{ try{ dbOpts(); }catch(e){} },0); setTimeout(()=>{ try{ dbOpts(); }catch(e){} },800);
+})();
+
 if(window.__homeHold) showHome('load');
 })();
 </script>
