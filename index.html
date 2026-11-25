@@ -8503,11 +8503,11 @@ function runnerTargets(P){ const live=P.runners.filter(r=>!r.out&&!r.scored).sor
       if(!r.batter && !r.flyHeld && flyUp(P) && runOuts()<2){ r.flyHeld=true; r.target=r.orig; }
       if(P.flyBack && !r.batter && r.tagged && (r.orig===2||r.orig===3) && !KU && !KD && runOuts()+P.runners.filter(q=>q.out).length<3){ if(r.autoTag===undefined) r.autoTag=canTagUp(P,r,0.4); if(r.autoTag){ r.target=Math.min(4,r.orig+1); return; } }   /* DW 2026-11-23: deep fly, he tags and goes himself */   /* fly ball in the air: he stays until you send him */
       /* DW 2026-11-20: HOLD Up/8 = he runs for the next base, HOLD Down/2 = he goes back, let go = he stops. Let go anywhere close to a base (6 ft) and he is on it. */
-      r.got=Math.max(r.got||0, Math.floor(r.s+0.02)); const mn2=(P.how==='caught'&&!r.batter)?mn:Math.max(mn,r.got);
+      r.got=Math.max(r.got||0, Math.floor(r.s+0.02)); const hrK=!!(P.hrLive && !P.hrGone); const mn2=hrK?(r.batter?Math.max(1,r.got):Math.max(r.orig,r.got)):(P.how==='caught'&&!r.batter)?mn:Math.max(mn,r.got);   /* DW 2026-11-25: on a homer you drive the lead runner, he never goes by himself */
       if(KU) r.target=Math.min(4, Math.floor(r.s+1e-6)+1);
-      else if(two && !r.batter && r.target<Math.min(4,r.orig+1)) r.target=Math.min(4, Math.max(Math.floor(r.s+1e-6)+1, r.orig+1));   /* two outs: he's off on contact */
-      else if(two && !r.batter && r.target>=r.orig+1-1e-6 && !(KD && now-RUNK.downAt>250)){ }
-      else if(KD && now-RUNK.downAt>250 && !(two && !r.batter && Math.ceil(r.s-1e-6)-1<=r.orig)) r.target=Math.max(mn2, Math.ceil(r.s-1e-6)-1);
+      else if(two && !hrK && !r.batter && r.target<Math.min(4,r.orig+1)) r.target=Math.min(4, Math.max(Math.floor(r.s+1e-6)+1, r.orig+1));   /* two outs: he's off on contact */
+      else if(two && !hrK && !r.batter && r.target>=r.orig+1-1e-6 && !(KD && now-RUNK.downAt>250)){ }
+      else if(KD && now-RUNK.downAt>250 && !(two && !hrK && !r.batter && Math.ceil(r.s-1e-6)-1<=r.orig)) r.target=Math.max(mn2, Math.ceil(r.s-1e-6)-1);
       else { const nb=Math.round(r.s); r.target=Math.abs(r.s-nb)*75<=RUN_SNAP?nb:r.s; if(r.target<mn2-1e-3) r.target=mn2; }
       return; }
     if(!r.batter && flyUp(P) && runOuts()<2){ if(r.tagGo===undefined) r.tagGo=canTagUp(P,r);
