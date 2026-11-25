@@ -1447,7 +1447,7 @@ function showField3D(bb){ window.__outs0=S.outs|0;
   if(!F3D.ready){ log('The 3D park did not start ('+($('hud3d').textContent)+'), so this hit was scored without the flight view.'); finishPlay({hr:false,foul:Math.abs(bb.spray)>45,wall:false,dist:0}, bb); return; }
   el.classList.add('show'); S.playing=true; F3D.shownAt=performance.now(); rpHitShown();
   if(POPOUT) $('popBox').classList.add('away');   // DW: pop-out goes away on contact
-  F3D.onDone = res=>{ rpEnd(); F3D.shownAt=0; PERF.last=0; if(POPOUT) $('popBox').classList.remove('away'); else { el.classList.remove('show'); F3D.call('setActive', false); } finishPlay(res,bb); };
+  F3D.onDone = res=>{ rpEnd(); F3D.shownAt=0; PERF.last=0; if(POPOUT) $('popBox').classList.remove('away'); else if(!window.__drillOn){ el.classList.remove('show'); F3D.call('setActive', false); } finishPlay(res,bb); };   /* DW 2026-11-25: the drill stays on the field */
   F3D.call('setActive', true);
   F3D.call('hit', bb.ev, bb.la, bb.spray, {spin:bb.spin, cut:bb.cut, hand:HAND(), knuckle:bb.knuckle||0});
   S._fieldShown=true; try{ const cc=contactCall(bb); if(cc) ANN.say(cc, true); }catch(e){}   /* DW 2026-11-22: called live on the big field in both layouts */   /* DW 2026-11-22: on the full field screen the announcer calls it as it happens */
@@ -6643,7 +6643,7 @@ const FT_PX=6.2/640;       // the player is ~6.2 ft tall; ~640 px in the full-si
 const AFPS={ready:10, move_right:15, dive_right:22, getup:9, throw:14};
 const RUN_LOOP=[5,6,7,8,9,10,11,12,13];   // the running stride part of the move
 const BASES={W:[0,106,'2nd'], A:[-53,53,'3rd'], D:[53,53,'1st'], S:[0,50,'the pitcher'], X:[0,0,'home']};
-const SPOTS={ '3B':[-55,69,'IF'], 'SS':[-42,118,'IF'],   /* DW 2026-11-19: shortstop 4 ft toward third */ 'MI':[8,127,'IF'], '2B':[40,114,'IF'], '1B':[55,69,'IF'], 'LF':[-157,243,'OF'], 'CF':[0,292,'OF'], 'RF':[157,243,'OF'], 'C':[0,-6,'C'], 'P':[0,50,'P'], 'R':[3,0.7,'R'] , 'R1':[53,53,'BR'], 'R2':[0,106,'BR'], 'R3':[-53,53,'BR']};
+const SPOTS={ '3B':[-58.5,65.5,'IF']   /* DW 2026-11-25: 5 ft closer to the line */, 'SS':[-42,118,'IF'],   /* DW 2026-11-19: shortstop 4 ft toward third */ 'MI':[8,127,'IF'], '2B':[40,114,'IF'], '1B':[58.5,65.5,'IF'], 'LF':[-157,243,'OF'], 'CF':[0,292,'OF'], 'RF':[157,243,'OF'], 'C':[0,-6,'C'], 'P':[0,50,'P'], 'R':[3,0.7,'R'] , 'R1':[53,53,'BR'], 'R2':[0,106,'BR'], 'R3':[-53,53,'BR']};
 const BASE_FT=[70,75,80,85,90].includes(+window.__baseFt)?+window.__baseFt:75, BK=BASE_FT/75; if(BK!==1){ for(const k of ['W','A','D']){ BASES[k][0]*=BK; BASES[k][1]*=BK; } for(const k of ['3B','SS','MI','2B','1B','R1','R2','R3']){ SPOTS[k][0]*=BK; SPOTS[k][1]*=BK; } }   /* the infielders play the same spots relative to the bags */
    // R = the batter running to 1st; DW 2026-11-17: LF/RF 20 ft closer to the lines, then another 20 ft (DW: still too far off)
 const FIELDERS={bases:[null,null,null,null], on:true, list:[], align:{strikes:1, hand:1}, target:null, play:null};
@@ -6726,7 +6726,7 @@ function errList(){ const L=window.__errL||[]; window.__errL=[]; if(!L.length) r
   const D=(globalThis.top&&globalThis.top.document)||globalThis.document; let el=D.getElementById('errList'); if(!el){ el=D.createElement('div'); el.id='errList'; el.style.cssText="position:fixed;left:50%;top:40px;transform:translateX(-50%);z-index:9999;pointer-events:none;max-width:92vw;text-align:center;padding:6px 14px;border-radius:8px;background:rgba(10,14,20,.85);color:#e8eef5;font:700 17px/1.25 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.03em;box-shadow:0 3px 12px rgba(0,0,0,.5);transition:opacity .4s"; D.body.appendChild(el); }
   el.textContent='Error chances: '+L.join(' · '); el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>{ el.style.opacity='0'; },6000); }
 function levelsBelow(v){ return Math.max(0,Math.min(29,Math.round((99-(v??50))/(98/29)))); }   /* DW 2026-11-22: game math, mirrored on the Game Math tab of his sheet */   // position Fielding + Hands
-function armSpeed(f){ const v=(f&&f.r)?f.r.arm:50; return 36+72*Math.pow(Math.max(0,v)/99,1.4); }   /* DW 2026-11-21: all levels 10 ft/s (7 mph) slower. level 30 = 108 ft/s (73 mph), 25 = 91, 20 = 76, 15 = 62, 10 = 50 */                                 // Arm: 99 ~110 ft/s (75 mph), 45 ~83 ft/s
+function armSpeed(f){ const v=(f&&f.r)?f.r.arm:50; return (36+72*Math.pow(Math.max(0,v)/99,1.4))*(window.__dT&&window.__dT.arm||1); }   /* DW 2026-11-21: all levels 10 ft/s (7 mph) slower. level 30 = 108 ft/s (73 mph), 25 = 91, 20 = 76, 15 = 62, 10 = 50 */                                 // Arm: 99 ~110 ft/s (75 mph), 45 ~83 ft/s
 let REACT=0.3, SPD={IF:21, OF:24}, REACH=3.5, DIVE=9, CATCH_H=7.5, DIVE_H=4, IF_R=175;
 function passiveMove(P,tp){ if(!tp) return; P.cover=P.cover||{};
   if(Math.hypot(tp.x,tp.y)>150){ const of=FIELDERS.list.filter(f=>f.kind==='OF').sort((a,b)=>Math.hypot(a.x-tp.x,a.y-tp.y)-Math.hypot(b.x-tp.x,b.y-tp.y))[0];
@@ -6810,8 +6810,8 @@ function planPlay0(fl){
   P.fielder=fielder; P.catch=catchPt; P.how=how; setTimeout(()=>{ if(FIELDERS.play===P) ratePop(fielder,'Range'); },500);
   /* DW 2026-11-18: playing it off the wall: an outfielder can bobble the carom; his position defense decides how often */
   const offWall=fl.wallAt && catchPt && catchPt.t>=fl.wallAt.t && fielder.kind==='OF', wallErr=offWall ? 0.03+0.25*(1-((fielder.r&&(fielder.r.field??fielder.r.fielding))??50)/99)+(fl.wallAt.low?0.04:0) : 0;
-  if(fielder.kind!=='C' && Math.random()<errFlash(fielder,catchPt,(offWall?0:errChance(fielder, catchPt&&catchPt.air, !(catchPt&&catchPt.air) && fielder.kind!=='OF' && (how==='diving stop' || Math.hypot(catchPt.x-fielder.x,catchPt.y-fielder.y)>20 || (fl.ev||0)>=95)))+wallErr, offWall?'wall':null)){ const air=catchPt.air, ks=air?['juggle','drop']:['juggle','drop','kick'], k=ks[Math.floor(Math.random()*ks.length)];   /* DW 2026-11-18: show it: he juggles it, drops it and picks it up, or kicks it */
-    P.bobKind=k; P.bobble=k==='juggle'?0.9+0.4*Math.random():k==='drop'?1.2+0.4*Math.random():1.5+0.5*Math.random(); P.bobDir=Math.random()*Math.PI*2; P.bobDist=k==='kick'?3+2.5*Math.random():1.2+1.5*Math.random(); if(how==='caught') how=P.how='fielded'; }   // DW: Fielding/Hands ratings: now and then he bobbles it
+  if(fielder.kind!=='C' && Math.random()<errFlash(fielder,catchPt,(offWall?0:errChance(fielder, catchPt&&catchPt.air, !(catchPt&&catchPt.air) && fielder.kind!=='OF' && (how==='diving stop' || Math.hypot(catchPt.x-fielder.x,catchPt.y-fielder.y)>20 || (fl.ev||0)>=95)))+wallErr, offWall?'wall':null)){ if(!catchPt.air && !offWall){ const k=Math.random()<0.7?'ricochet':'whiff'; P.bobKind=k; P.bobble=99; P.defl={k}; if(how==='caught') how=P.how='fielded'; } else { const air=catchPt.air, ks=air?['juggle','drop']:['juggle','drop','kick'], k=ks[Math.floor(Math.random()*ks.length)];   /* DW 2026-11-18: show it: he juggles it, drops it and picks it up, or kicks it */
+    P.bobKind=k; P.bobble=k==='juggle'?0.9+0.4*Math.random():k==='drop'?1.2+0.4*Math.random():1.5+0.5*Math.random(); P.bobDir=Math.random()*Math.PI*2; P.bobDist=k==='kick'?3+2.5*Math.random():1.2+1.5*Math.random(); if(how==='caught') how=P.how='fielded'; } }   // DW: Fielding/Hands ratings: now and then he bobbles it
   // where he is headed: run so he gets there right at the catch (or as soon as he can)
   fielder.task={type:'field', tx:catchPt.x, ty:catchPt.y, at:catchPt.t, dive: P.diver&&P.diver.f===fielder, half: !!(catchPt.back && fielder.kind==='IF')};
   if(P.diver && P.diver.f!==fielder) P.diver.f.task={type:'divemiss', tx:P.diver.at.x, ty:P.diver.at.y, at:P.diver.at.t};
@@ -8256,10 +8256,20 @@ function playCalls(P,t){ const nm=P.name&&P.fielder?String(P.name[P.fielder.pos]
                    : (hard?pickOne(['Off the wall! It caroms back toward the infield!','Off the wall, and a big carom!']):pickOne(['Off the wall.','It hits off the wall.']))); }
   if(P.justMissed && !P.saidMiss && P.fl && P.fl.landed && t>=P.fl.landed.t){ P.saidMiss=true; liveCall(pickOne([`${nm} can't quite get there!`,`It falls in front of ${nm}!`,`Just out of reach of ${nm}!`])); }
   if(!P.bobble && P.how==='caught' && P.catch && !P.saidCatch && t>=P.catch.t+0.1){ P.saidCatch=true; liveCall(pickOne([`Caught by ${nm}.`,`${nm} makes the catch.`,`And ${nm} has it.`])); }   /* DW 2026-11-22 */
-  if(P.bobble && P.catch && !P.saidBob && t>=P.catch.t+0.15){ P.saidBob=true;
+  if(P.bobble && P.catch && !P.saidBob && t>=P.catch.t+0.15){ P.saidBob=true; if(P.defl) return;
     liveCall(P.bobKind==='drop'?((P.campT!=null && P.catch.t-P.campT>=0.5 && P.fl && (P.fl.la||0)>=22)?pickOne([`${nm} drops it!`,`And ${nm} drops the ball!`]):pickOne(['Off his glove!',`${nm} almost brought it in!`,`It's off the glove of ${nm}!`])):P.bobKind==='kick'?pickOne([`${nm} kicks it!`,`It's kicked away by ${nm}!`]):pickOne([`${nm} bobbles it!`,`${nm} juggles it!`])); } }
 function pickOne(a){ return a[Math.floor(Math.random()*a.length)]; }
-function stepPlay(t,dt){
+function deflectStart(P,t){ const d=P.defl; d.go=true; const c=P.catch, f=P.fielder, S=P.S||[]; let i=0; while(i<S.length-1 && S[i+1].t<c.t) i++; const a=S[Math.max(0,i-1)], b=S[Math.min(S.length-1,i+1)];
+  let ux=c.x, uy=c.y, vin=40; if(a && b && b.t>a.t){ ux=b.x-a.x; uy=b.y-a.y; vin=Math.hypot(ux,uy)/(b.t-a.t); } const ul=Math.hypot(ux,uy)||1; ux/=ul; uy/=ul; vin=Math.max(15,Math.min(140,vin));
+  let dx=ux, dy=uy, v0, dur, hops, h0=1.2;
+  if(d.k==='whiff'){ v0=vin*0.92; dur=Math.min(2.6,0.5+v0/40); hops=vin>70?0:1; }   /* it goes right on by at the speed it had */
+  else { const sd=Math.random()<0.5?-1:1, an=sd*(0.9+Math.random()*1.0), ca=Math.cos(an), sa=Math.sin(an); dx=ux*ca-uy*sa; dy=ux*sa+uy*ca; v0=vin*(0.22+0.2*Math.random()); dur=0.7+0.5*Math.random(); hops=Math.random()<0.5?1:2; h0=2.0; }   /* off his glove or body, left or right */
+  const L=v0*dur*0.55, E=[c.x+dx*L, c.y+dy*L], t0=t;
+  const fn=tt=>{ const u=Math.max(0,Math.min(1,(tt-t0)/dur)), sdist=L*(1-(1-u)*(1-u)), hh=hops?Math.max(0.12,(h0+1.6*hops)*Math.abs(Math.sin(Math.PI*hops*u))*(1-u)+0.12):0.12+Math.max(0,h0*(1-4*u)); return [c.x+dx*sdist, c.y+dy*sdist, hh]; };
+  P.recv=null; P.ballFly={fn, t0, dur, to:E, from:[c.x,c.y], defl:true, wild:{E, said:true, tPast:t0, kind:'defl'}};
+  let g=null, bd=1e9; for(const q of FIELDERS.list){ if(!(q.kind==='IF'||q.kind==='OF'||q.kind==='P')) continue; const dd=Math.hypot(q.x-E[0],q.y-E[1]); if(dd<bd){ bd=dd; g=q; } } if(g){ g.task={type:'loose', tx:E[0], ty:E[1]}; g.toBag=null; }   /* the nearest man goes after it right away */
+  if(f && f!==g){ f.task={type:'none'}; } try{ liveCall(d.k==='whiff'?pickOne(['Right through him!','It goes under the glove!','He misses it, and it rolls on by!']):pickOne(['Off the glove, and it kicks away!','It caroms off him!','Knocked down, but it gets away!'])); }catch(e){} }
+function stepPlay(t,dt){ { const P=FIELDERS.play; if(P && P.defl && !P.defl.go && P.catch && t>=P.catch.t && !P.held){ try{ deflectStart(P,t); }catch(e){ console.error('deflect',e); P.defl.go=true; P.bobble=1.2; } } }
   const P=FIELDERS.play; PLAYSTEP++; if(!P || (P.passive && !P.chase)) return;
   if(!P.passive) playCalls(P,t);
   if(P.foulLive && !P.saidFoul && typeof flight!=='undefined' && flight && flight.landed && t>=flight.landed.t){ P.saidFoul=true; liveCall('@FOUL:'+(flight.landed.fb?'field':'stands')); }   /* DW 2026-11-22 */
@@ -8597,13 +8607,14 @@ function playBallPos(t){ const P=FIELDERS.play; if(!P || P.passive) return null;
    the old runner pictures stay. The plate view still draws its small runners from the pictures. */
 /* DW 2026-11-25: bare throwing hand (no white batting glove) on the 3D fielders and runners */
 /* From the moves sandbox (players3d/arlis/sandbox3/index.html), 2026-11-25. Needs THREE and V3=THREE.Vector3.
-   Call bareRightHand(modelRoot) once after the 3D Arlis loads, before any uniform reskin copies the texture. */
+   bareRightHand(root) = right hand to skin; bareRightHand(root,'Left',[120,82,45]) = left hand to glove leather (no white inside the glove).
+   Call once after the 3D Arlis loads, before any uniform reskin copies the texture. */
 // paint the right batting glove the colour of his skin: find the texture area used by the right hand's vertices and fill it
-function bareRightHand(inner){ const V3=THREE.Vector3;
+function bareRightHand(inner,side='Right',fixed=null){ const V3=THREE.Vector3;
  inner.traverse(o=>{if(!o.isSkinnedMesh||!o.material||!o.material.map||!o.material.map.image)return;
   const g=o.geometry,uv=g.attributes.uv,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,idx=g.index,bones=o.skeleton.bones;
-  const isR=bones.map(b=>/RightHand/.test(b.name)),isHead=bones.map(b=>/Head$|HeadTop/.test(b.name));
-  o.skeleton.pose();o.updateMatrixWorld(true);const hb=bones.find(b=>/RightHand$/.test(b.name)),fb=bones.find(b=>/RightForeArm$/.test(b.name));
+  const isR=bones.map(b=>new RegExp(side+'Hand').test(b.name)),isHead=bones.map(b=>/Head$|HeadTop/.test(b.name));
+  o.skeleton.pose();o.updateMatrixWorld(true);const hb=bones.find(b=>new RegExp(side+'Hand$').test(b.name)),fb=bones.find(b=>new RegExp(side+'ForeArm$').test(b.name));
   const wp=hb.getWorldPosition(new V3()),dir=wp.clone().sub(fb.getWorldPosition(new V3())).normalize(),pos=g.attributes.position,tv=new V3();
   const handV=new Float32Array(uv.count);for(let v=0;v<uv.count;v++){tv.fromBufferAttribute(pos,v);o.applyBoneTransform(v,tv);tv.applyMatrix4(o.matrixWorld);const d=tv.sub(wp).dot(dir);handV[v]=d;}
   const fl=wp.distanceTo(fb.getWorldPosition(new V3()));
@@ -8613,7 +8624,7 @@ function bareRightHand(inner){ const V3=THREE.Vector3;
   const P=v=>[uv.getX(v)*W,(flip?1-uv.getY(v):uv.getY(v))*H];
   // skin tone: median of skin-like texels on the face
   const sk=[];for(let v=0;v<uv.count;v++)if(wOn(v,isHead)>0.8){const [px,py]=P(v);const i=((Math.min(H-1,py|0))*W+Math.min(W-1,px|0))*4,r=D[i],gg=D[i+1],b=D[i+2];if(r>120&&r>gg+12&&gg>b+5&&r<245)sk.push([r,gg,b]);}
-  if(sk.length<10)return;const med=k=>sk.map(a=>a[k]).sort((a,b)=>a-b)[sk.length>>1];const col=`rgb(${med(0)},${med(1)},${med(2)})`;
+  if(fixed){sk.length=0;for(let k=0;k<11;k++)sk.push(fixed);}if(sk.length<10)return;const med=k=>sk.map(a=>a[k]).sort((a,b)=>a-b)[sk.length>>1];const col=`rgb(${med(0)},${med(1)},${med(2)})`;
   x.fillStyle=col;x.strokeStyle=col;x.lineWidth=3;x.lineJoin='round';let nt=0,mt=null;
   const tri=idx?idx.count/3:uv.count/3;for(let t=0;t<tri;t++){const a=idx?idx.getX(3*t):3*t,b=idx?idx.getX(3*t+1):3*t+1,cc=idx?idx.getX(3*t+2):3*t+2;
    const wr=wOn(a,isR)+wOn(b,isR)+wOn(cc,isR);if(wr<0.3)continue;const A=P(a),B=P(b),C=P(cc);
@@ -8626,7 +8637,7 @@ function bareRightHand(inner){ const V3=THREE.Vector3;
    for(let i=0;i<d.length;i+=4){if(!MD[i])continue;const r=d[i],g2=d[i+1],b2=d[i+2],mxv=Math.max(r,g2,b2),mn=Math.min(r,g2,b2);if(mn>150&&mxv-mn<40){d[i]=sc[0];d[i+1]=sc[1];d[i+2]=sc[2];}}
    x.putImageData(ID,0,0);}
   const tex=new THREE.CanvasTexture(c);tex.flipY=o.material.map.flipY;tex.colorSpace=o.material.map.colorSpace;tex.wrapS=o.material.map.wrapS;tex.wrapT=o.material.map.wrapT;tex.needsUpdate=true;
-  o.material=o.material.clone();o.material.map=tex;console.log('bare right hand: painted',nt,'triangles',col);});
+  o.material=o.material.clone();o.material.map=tex;console.log(side+' hand painted',nt,'triangles',col);});
 }
 
 const RUN3D={ready:false, tried:false, failed:false, inst:new Map(), FT:(73/12)/0.977,   /* DW 2026-11-25: Arlis is 6 ft 1, 205 lb */ cyc:2, runDur:1.25,
@@ -8640,7 +8651,7 @@ const RUN3D={ready:false, tried:false, failed:false, inst:new Map(), FT:(73/12)/
     window.__loadJS('players/arlis_runner.js', ()=>{ window.__loadJS('players/arlis_moves.js', go, ()=>{ console.warn('3D fielders file missing: players/arlis_moves.js (the fielder pictures are used)'); go(); }); }, ()=>{ this.failed=true; console.warn('3D runner file missing: players/arlis_runner.js (the old runner pictures are used)'); }); },
   clone(source){ const sl=new Map(), cl=new Map(), c=source.clone(); const pt=(a,b)=>{ sl.set(b,a); cl.set(a,b); for(let i=0;i<a.children.length;i++) pt(a.children[i],b.children[i]); }; pt(source,c);
     c.traverse(n=>{ if(!n.isSkinnedMesh) return; const sm=sl.get(n); n.skeleton=sm.skeleton.clone(); n.bindMatrix.copy(sm.bindMatrix); n.skeleton.bones=sm.skeleton.bones.map(b=>cl.get(b)); n.bind(n.skeleton,n.bindMatrix); }); return c; },
-  setup(g){ const sc=g.scene, B={}; sc.traverse(o=>{ if(o.isBone) B[this.key(o.name)]=o; if(o.isMesh){ o.frustumCulled=false; if(o.material){ o.material.metalness=0; o.material.roughness=0.85; } } }); try{ bareRightHand(sc); }catch(e){ console.error('bare hand',e); }
+  setup(g){ const sc=g.scene, B={}; sc.traverse(o=>{ if(o.isBone) B[this.key(o.name)]=o; if(o.isMesh){ o.frustumCulled=false; if(o.material){ o.material.metalness=0; o.material.roughness=0.85; } } }); try{ bareRightHand(sc); bareRightHand(sc,'Left',[120,82,45]); }catch(e){ console.error('bare hand',e); }   /* DW 2026-11-25: no white inside the glove either */
     sc.updateMatrixWorld(true); const V=()=>new THREE.Vector3(), l=B.LeftArm.getWorldPosition(V()), r=B.RightArm.getWorldPosition(V()); this.yaw=Math.atan2(l.z-r.z,l.x-r.x);   /* turn him so he faces +z */
     const h0=B.Hips.position.clone(), lock=c=>{ const hp=c.tracks.find(t=>/Hips\.position$/.test(t.name)); if(hp){ const v=hp.values; for(let i=0;i<v.length;i+=3){ v[i]=h0.x; v[i+2]=h0.z; } } return c; };   /* in place: the game moves him */
     this.run=lock(g.animations.find(a=>a.name==='run')); this.runDur=this.run.duration;
@@ -8832,7 +8843,7 @@ function fixCover(P,k,h){ const [bx,by]=bagSpot(k), c=P.cover[k], far=c=>!c||c==
 /* DW 2026-11-22: "Computer plays defense". The man with the ball looks for a moment, then throws to the base where he can get the
    most advanced runner out (forced or tagged); if nobody can be beaten he throws ahead of the lead runner. Nobody running: he holds it
    (held 2 s = next batter, as before). Your own W A D S X keys still win if you press one. */
-function autoDefOn(){ try{ return !!window.__autoDef || !!window.__drillOn; }catch(e){ return false; } }
+function autoDefOn(){ try{ return !!window.__autoDef; }catch(e){ return false; } }
 function autoDef(P){ if(!P||P.passive||P.practice||!autoDefOn()) return; if(!P.held||P.pending||P.ballFly||P.queued) return;
   const h=P.held.f; if(!h||!h.mats||h.toBag) return; const t=P.now||0;
   if(P._adF!==h){ const fq=((h.r&&(h.r.field??h.r.fielding))??75)/99; P._adF=h; P._adT=t+(h.kind==='IF'?0.08+0.2*(1-fq):0.12); return; }   /* DW 2026-11-23: infielders don't hang on to it */
@@ -15652,52 +15663,52 @@ function bpTick(){ if(!BP.on||!BP.st) return; window.__autoDef=true; AUTOPITCH=f
 const DRILL={on:false, last:null, next:0, n:0, log:[], busyAt:0};
 const DR_TYPES=[['roll','Slow roller',25,35,-12,-7],['slow','Slow grounder',40,55,-7,-3],['med','Medium grounder',60,75,-5,-1],['hard','Hard grounder',80,95,-4,0],['laser','Laser',100,112,-3,1]];
 const DR_DIRS=[['at','Right at him'],['glove','Glove side'],['back','Backhand']];
-const DR_SL=[['react','Reaction time',0.5,1.5,0.05,1,'x'],['accel','Acceleration',0.5,1.6,0.05,1,'x'],['speed','Top speed (vs Range)',0.7,1.3,0.02,1,'x'],['reach','Glove reach',0.6,1.6,0.05,1,'x'],['dive','Dive reach',0.5,1.6,0.05,1,'x'],['run','Runner speed',20,99,1,50,'']];
-function drSet(){ try{ const o=JSON.parse(LS('sbDrill')||'null'); if(o) return o; }catch(e){} return {pos:'3B', types:{roll:1,slow:1,med:1,hard:1,laser:1}, dirs:{at:1,glove:1,back:1}, every:4, slow:false, tune:{react:1,accel:1,speed:1,reach:1,dive:1,run:50}}; }
+const DR_SL=[['react','Reaction time',0.5,1.5,0.05,1,'x'],['accel','Acceleration',0.5,1.6,0.05,1,'x'],['speed','Top speed (vs Range)',0.7,1.3,0.02,1,'x'],['reach','Glove reach',0.6,1.6,0.05,1,'x'],['dive','Dive reach',0.5,1.6,0.05,1,'x'],['run','Runner speed',20,99,1,50,''],['arm','Throw speed',0.6,1.3,0.02,1,'x']];
+function drSet(){ const D0={react:1,accel:1,speed:1,reach:1,dive:1,run:50,arm:1}; try{ const o=JSON.parse(LS('sbDrill')||'null'); if(o){ o.tune=Object.assign({},D0,o.tune||{}); return o; } }catch(e){} return {auto:0, pos:'3B', types:{roll:1,slow:1,med:1,hard:1,laser:1}, dirs:{at:1,glove:1,back:1}, every:4, slow:false, tune:D0}; }
 function drSave(o){ LS('sbDrill',JSON.stringify(o)); }
-function drApply(o){ const T=o.tune; window.__dT={react:T.react,speed:T.speed,dive:T.dive}; window.__drillRun=T.run; try{ window.__dTapply&&window.__dTapply({accel:T.accel,reach:T.reach}); }catch(e){} window.__slowMo=o.slow?0.35:1; }
+function drApply(o){ const T=o.tune; window.__dT={react:T.react,speed:T.speed,dive:T.dive,arm:T.arm}; window.__drillRun=T.run; try{ window.__dTapply&&window.__dTapply({accel:T.accel,reach:T.reach}); }catch(e){} window.__slowMo=o.slow?0.35:1; }
 function drPanel(){ let w=$('drillPanel'); if(w) return w; const o=drSet(); w=document.createElement('div'); w.id='drillPanel';
   w.style.cssText="position:fixed;right:10px;top:60px;z-index:70;width:300px;max-height:calc(100vh - 80px);overflow:auto;background:rgba(8,14,22,.92);border:1px solid #2c4560;border-radius:10px;padding:10px 12px;color:#e8eef5;font:500 13px/1.35 Inter,system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.5)";
   const ck=(grp,k,lab,on)=>'<label style="display:block"><input type="checkbox" data-g="'+grp+'" data-k="'+k+'"'+(on?' checked':'')+'> '+lab+'</label>';
   w.innerHTML='<div style="font:700 18px \'Barlow Condensed\',system-ui,sans-serif;letter-spacing:.06em;color:#ffe600">INFIELD DRILL</div>'
    +'<div style="margin:6px 0">Fielder <select id="drPos">'+['3B','SS','MI','2B','1B'].map(p=>'<option'+(p===o.pos?' selected':'')+'>'+p+'</option>').join('')+'</select> &nbsp;Every <select id="drEvery">'+[2,3,4,5,6,8].map(n=>'<option value="'+n+'"'+(n==o.every?' selected':'')+'>'+n+' s</option>').join('')+'</select></div>'
    +'<div style="display:flex;gap:14px"><div><b>Balls</b>'+DR_TYPES.map(t=>ck('types',t[0],t[1]+' <small style="color:#9fb3c8">'+t[2]+'-'+t[3]+'</small>',o.types[t[0]])).join('')+'</div>'
-   +'<div><b>Where</b>'+DR_DIRS.map(d=>ck('dirs',d[0],d[1],o.dirs[d[0]])).join('')+'<label style="display:block;margin-top:6px"><input type="checkbox" id="drSlow"'+(o.slow?' checked':'')+'> Slow motion</label></div></div>'
+   +'<div><b>Where</b>'+DR_DIRS.map(d=>ck('dirs',d[0],d[1],o.dirs[d[0]])).join('')+'<label style="display:block;margin-top:6px"><input type="checkbox" id="drSlow"'+(o.slow?' checked':'')+'> Slow motion</label><label style="display:block" title="Off: you throw with W A D S X (2nd, 3rd, 1st, pitcher, home). On: he throws to 1st by himself"><input type="checkbox" id="drAuto"'+(o.auto?' checked':'')+'> Computer throws</label></div></div>'
    +'<div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap"><button type="button" id="drGo">Start</button><button type="button" id="drOne">One ball</button><button type="button" id="drRep">Repeat last</button><button type="button" id="drClose">Close</button></div>'
    +'<details open><summary style="cursor:pointer"><b>Movement (drill only)</b></summary>'+DR_SL.map(q=>'<label style="display:block;margin-top:4px">'+q[1]+' <b id="drv_'+q[0]+'">'+o.tune[q[0]]+q[6]+'</b><input type="range" style="width:100%" data-t="'+q[0]+'" min="'+q[2]+'" max="'+q[3]+'" step="'+q[4]+'" value="'+o.tune[q[0]]+'"></label>').join('')
    +'<div style="display:flex;gap:6px;margin-top:6px"><button type="button" id="drCopy">Copy settings</button><button type="button" id="drReset">Reset</button></div><div id="drCopied" style="color:#9fe39f;font-size:12px"></div></details>'
    +'<div style="margin-top:8px"><b>Results</b> <span id="drTally" style="color:#9fb3c8"></span></div><div id="drLog" style="font-size:12px"></div>';
   document.body.appendChild(w); for(const ev of ['keydown','keyup','keypress']) w.addEventListener(ev,x=>x.stopPropagation());
-  const save=()=>{ const n=drSet(); n.pos=$('drPos').value; n.every=+$('drEvery').value; n.slow=$('drSlow').checked; for(const c of w.querySelectorAll('input[data-g]')) n[c.dataset.g][c.dataset.k]=c.checked?1:0; for(const r of w.querySelectorAll('input[data-t]')){ n.tune[r.dataset.t]=+r.value; $('drv_'+r.dataset.t).textContent=(+r.value)+(r.dataset.t==='run'?'':'x'); } drSave(n); if(DRILL.on) drApply(n); };
+  const save=()=>{ const n=drSet(); n.pos=$('drPos').value; n.every=+$('drEvery').value; n.slow=$('drSlow').checked; n.auto=$('drAuto').checked?1:0; for(const c of w.querySelectorAll('input[data-g]')) n[c.dataset.g][c.dataset.k]=c.checked?1:0; for(const r of w.querySelectorAll('input[data-t]')){ n.tune[r.dataset.t]=+r.value; $('drv_'+r.dataset.t).textContent=(+r.value)+(r.dataset.t==='run'?'':'x'); } drSave(n); if(DRILL.on) drApply(n); };
   w.addEventListener('change',save); w.addEventListener('input',save);
   $('drGo').onclick=()=>{ if(DRILL.on) drStop(); else drStart(); };
   $('drOne').onclick=()=>{ drStart(true); drFire(); };
   $('drRep').onclick=()=>{ if(!DRILL.last) return; drStart(true); drFire(DRILL.last); };
   $('drClose').onclick=()=>{ drStop(); w.remove(); };
-  $('drCopy').onclick=()=>{ const o=drSet(), T=o.tune, txt='Infield drill settings: reaction '+T.react+'x, acceleration '+T.accel+'x, top speed '+T.speed+'x, glove reach '+T.reach+'x, dive reach '+T.dive+'x, runner speed '+T.run+'.'; try{ navigator.clipboard.writeText(txt); }catch(e){} $('drCopied').textContent='Copied: '+txt; };
-  $('drReset').onclick=()=>{ const o=drSet(); o.tune={react:1,accel:1,speed:1,reach:1,dive:1,run:50}; drSave(o); w.remove(); drPanel(); if(DRILL.on) drApply(o); };
+  $('drCopy').onclick=()=>{ const o=drSet(), T=o.tune, txt='Infield drill settings: reaction '+T.react+'x, acceleration '+T.accel+'x, top speed '+T.speed+'x, glove reach '+T.reach+'x, dive reach '+T.dive+'x, throw speed '+T.arm+'x, runner speed '+T.run+'.'; try{ navigator.clipboard.writeText(txt); }catch(e){} $('drCopied').textContent='Copied: '+txt; };
+  $('drReset').onclick=()=>{ const o=drSet(); o.tune={react:1,accel:1,speed:1,reach:1,dive:1,run:50,arm:1}; drSave(o); w.remove(); drPanel(); if(DRILL.on) drApply(o); };
   return w; }
 function drStart(paused){ const o=drSet(); if(!DRILL.on){ DRILL.on=true; window.__drillOn=true; DRILL.keep={outs:S.outs, bases:(S.bases||[]).slice(), balls:S.balls, strikes:S.strikes}; DRILL.save={ad:window.__autoDef, ap:AUTOPITCH}; DRILL.n=0; DRILL.log=[]; DRILL.tally={out:0,safe:0,err:0,through:0}; }
   DRILL.auto=!paused; DRILL.next=performance.now()+600; drApply(o); S.outs=0; S.bases=[null,null,null,null]; try{ renderCount(); }catch(e){} const b=$('drGo'); if(b) b.textContent=DRILL.auto?'Stop':'Start'; }
-function drStop(){ if(!DRILL.on) return; DRILL.on=false; DRILL.auto=false; window.__drillOn=false; window.__dT=null; window.__slowMo=1; try{ window.__dTapply&&window.__dTapply(null); }catch(e){} if(DRILL.save){ window.__autoDef=DRILL.save.ad; AUTOPITCH=DRILL.save.ap; } if(DRILL.keep){ Object.assign(S,DRILL.keep); DRILL.keep=null; try{ renderCount(); }catch(e){} } const b=$('drGo'); if(b) b.textContent='Start'; }
+function drStop(){ if(!DRILL.on) return; DRILL.on=false; DRILL.auto=false; window.__drillOn=false; window.__dT=null; window.__slowMo=1; try{ window.__dTapply&&window.__dTapply(null); }catch(e){} if(DRILL.save){ window.__autoDef=DRILL.save.ad; AUTOPITCH=DRILL.save.ap; } if(DRILL.keep){ Object.assign(S,DRILL.keep); DRILL.keep=null; try{ renderCount(); }catch(e){} } const b=$('drGo'); if(b) b.textContent='Start'; if(!FIELD_VIEW && !S.playing){ $('field3d').classList.remove('show'); F3D.call('setActive', false); } }
 function drPick(){ const o=drSet(), T=DR_TYPES.filter(t=>o.types[t[0]]), D=DR_DIRS.filter(d=>o.dirs[d[0]]); const t=(T.length?T:DR_TYPES)[Math.floor(Math.random()*(T.length||5))], d=(D.length?D:DR_DIRS)[Math.floor(Math.random()*(D.length||3))];
   const sp=(window.__alignSpot&&window.__alignSpot(o.pos))||{'3B':[-55,69],'SS':[-42,118],'MI':[8,127],'2B':[40,114],'1B':[55,69]}[o.pos], R=Math.hypot(sp[0],sp[1]), a0=Math.atan2(sp[0],sp[1])*180/Math.PI;
   const lat=d[0]==='at'?(Math.random()*4-2):(d[0]==='glove'?1:-1)*(6+Math.random()*10);   /* feet across at his depth: glove side = his left */
   const ev=Math.round(t[2]+Math.random()*(t[3]-t[2])), la=Math.round(t[4]+Math.random()*(t[5]-t[4])), spray=Math.max(-44,Math.min(44,a0+lat/R*180/Math.PI));
   return {type:t[0], tname:t[1], dir:d[0], dname:d[1], lat:Math.round(lat), ev, la, spray:Math.round(spray*10)/10, pos:o.pos}; }
 function drFire(again){ if(!DRILL.on || S.playing || ball || S.pitchInFlight || !F3D.ready) return false; const q=again||drPick(); DRILL.last=q; DRILL.cur=q; DRILL.n++; window.__drillInfo=null;
-  S.outs=0; S.bases=[null,null,null,null]; window.__autoDef=true; AUTOPITCH=false;
+  S.outs=0; S.bases=[null,null,null,null]; window.__autoDef=!!drSet().auto; AUTOPITCH=false;
   const bb={ev:q.ev, la:q.la, spray:q.spray, q:1, spin:0, cut:0, knuckle:0, mishit:null, swing:'Drill'}; showField3D(bb); return true; }
 function drRecord(res){ const q=DRILL.cur, I=window.__drillInfo||{}; if(!q) return; DRILL.cur=null; const nm=p=>String((NAME&&NAME[p])||p||'').replace(/ \(.*\)/,'');
   let play; if(I.kind==='OF') play='Got through to '+I.pos; else if(I.pos && I.pos!==q.pos) play=I.pos+' took it'; else play=I.how==='diving stop'||I.dove?'Diving stop':'Clean';
   if(I.diveMiss) play='Dove, missed'+(I.pos?', '+I.pos+' got it':'');
-  if(I.bob) play+=' · bobble ('+I.bob+')'; if(I.wild) play+=' · wild throw'; const err=(I.e||[]).length>0; if(err) play+=' · ERROR';
+  if(I.bob==='ricochet') play='Off his glove, ricocheted away'; else if(I.bob==='whiff') play='Whiffed, it rolled on by'; else if(I.bob) play+=' · bobble ('+I.bob+')'; if(I.wild) play+=' · wild throw'; const err=(I.e||[]).length>0; if(err) play+=' · ERROR';
   const tm=(I.b1T!=null?'ball at 1st '+I.b1T.toFixed(2)+'s':'no throw to 1st')+(I.t1B!=null?', runner '+I.t1B.toFixed(2)+'s':'');
   const out=res&&res.outAt1st?'OUT':(I.res||(res&&res.safeAt1st?'SAFE':'')); const T=DRILL.tally; if(err) T.err++; if(I.kind==='OF') T.through++; if(out==='OUT') T.out++; else if(out==='SAFE') T.safe++;
   const line='<div style="border-top:1px solid #24364a;padding:3px 0"><b>#'+DRILL.n+'</b> '+q.tname+' '+q.ev+' mph, '+q.dname.toLowerCase()+'<br><span style="color:'+(out==='OUT'?'#9fe39f':'#ffb3a8')+'">'+(out||'-')+'</span> · '+play+'<br><span style="color:#9fb3c8">'+tm+'</span></div>';
   DRILL.log.unshift(line); DRILL.log=DRILL.log.slice(0,12); const L=$('drLog'); if(L) L.innerHTML=DRILL.log.join(''); const ta=$('drTally'); if(ta) ta.textContent=DRILL.n+' balls: '+T.out+' out, '+T.safe+' safe, '+T.err+' errors'+(T.through?', '+T.through+' through':'');
   const hl=$('hudPitch'); if(hl) hl.textContent='Drill #'+DRILL.n+': '+(out||'-')+' · '+play; }
-{ const _sg=saveGame; saveGame=function(){ if(DRILL.on) return; return _sg.apply(this,arguments); };
+{ const _sg=saveGame; saveGame=function(){ if(DRILL.on) return; return _sg.apply(this,arguments); }; const _st=selectTarget; selectTarget=function(){ if(DRILL.on) return; return _st.apply(this,arguments); };   /* W A S D X are throws in the drill, never a pitch */
   { let go=null; try{ go=sessionStorage.getItem('sbDrillGo'); sessionStorage.removeItem('sbDrillGo'); }catch(e){}   /* picked on the start screen */
     if(go){ const AUTOPITCH0=AUTOPITCH, t0=performance.now(), tk=setInterval(()=>{ try{ for(const b of document.querySelectorAll('button')) if(/^Skip/.test(b.textContent) && b.offsetParent) b.click();
         AUTOPITCH=false; if(!F3D.ready || !PB.ok || S.pitchInFlight || S.playing || ball || window.__playLive || document.querySelector('.intro,.playball,#teamPick') || window.__homeHold){ if(performance.now()-t0>60000) clearInterval(tk); return; }
@@ -15705,7 +15716,7 @@ function drRecord(res){ const q=DRILL.cur, I=window.__drillInfo||{}; if(!q) retu
   const _fp=finishPlay; finishPlay=function(res,bb){ if(!DRILL.on || !bb || bb.swing!=='Drill') return _fp.apply(this,arguments);
     S.batted=null; S.battedPos=null; S.playing=false; ball=null; try{ drRecord(res); }catch(e){ console.error('drill',e); } S.outs=0; S.bases=[null,null,null,null]; try{ renderCount(); }catch(e){} DRILL.next=performance.now()+(drSet().every*1000); };
   const _say=ANN.say; ANN.say=function(){ if(DRILL.on) return; return _say.apply(this,arguments); };
-  setInterval(()=>{ try{ if(!DRILL.on) return; window.__autoDef=true; AUTOPITCH=false; if(!DRILL.auto) return; if(document.hidden || window.__paused || document.querySelector('header.open')) return; if(performance.now()<DRILL.next) return; if(!drFire()) DRILL.next=performance.now()+300; }catch(e){ console.error('drill',e); } },150);
+  setInterval(()=>{ try{ if(!DRILL.on) return; window.__autoDef=!!drSet().auto; AUTOPITCH=false; if(F3D.ready && !$('field3d').classList.contains('show')){ $('field3d').classList.add('show'); F3D.call('setActive', true); } if(!DRILL.auto) return; if(document.hidden || window.__paused || document.querySelector('header.open')) return; if(performance.now()<DRILL.next) return; if(!drFire()) DRILL.next=performance.now()+300; }catch(e){ console.error('drill',e); } },150);
   setTimeout(()=>{ const b=$('btnDrill'); if(b) b.onclick=e=>{ e.target.blur(); e.stopPropagation(); try{ const h=document.querySelector('header'); h.classList.remove('open'); }catch(_){} if($('drillPanel')){ drStop(); $('drillPanel').remove(); } else drPanel(); }; },0); }
 function bpSummary(){ try{ const q=JSON.parse(LS('sbBpCur')||'null'); if(q && q.name){ const L=bpLine(q); return q.name+' vs '+q.def+' defense · '+q.ab+' AB, '+q.h+' H, '+q.hr+' HR, '+(q.bb|0)+' BB · AVG '+L.avg+', OBP '+L.obp+', RP7 '+L.rp7; } }catch(e){} return null; }
 window.rp7Of=function(x){ const pa=x.PA|0, ab=(x.AB|0)||Math.max(0,pa-(x.BB|0)); if(!pa||!ab) return ''; const ob=((x.OB!=null?x.OB:(x.H|0)+(x.BB|0))|0)/pa; if(ob>=1) return ''; const slg=((x['1B']|0)+2*(x['2B']|0)+3*(x['3B']|0)+4*(x.HR|0))/ab; return (7*slg/(1-ob)).toFixed(1); };   /* DW 2026-11-23 */
