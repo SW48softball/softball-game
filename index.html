@@ -8595,6 +8595,40 @@ function playBallPos(t){ const P=FIELDERS.play; if(!P || P.passive) return null;
 
 /* DW 2026-11-20: 3D Arlis Miller is the runner for everyone (for now). His model loads from players/arlis_runner.js; if that file is missing
    the old runner pictures stay. The plate view still draws its small runners from the pictures. */
+/* DW 2026-11-25: bare throwing hand (no white batting glove) on the 3D fielders and runners */
+/* From the moves sandbox (players3d/arlis/sandbox3/index.html), 2026-11-25. Needs THREE and V3=THREE.Vector3.
+   Call bareRightHand(modelRoot) once after the 3D Arlis loads, before any uniform reskin copies the texture. */
+// paint the right batting glove the colour of his skin: find the texture area used by the right hand's vertices and fill it
+function bareRightHand(inner){ const V3=THREE.Vector3;
+ inner.traverse(o=>{if(!o.isSkinnedMesh||!o.material||!o.material.map||!o.material.map.image)return;
+  const g=o.geometry,uv=g.attributes.uv,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,idx=g.index,bones=o.skeleton.bones;
+  const isR=bones.map(b=>/RightHand/.test(b.name)),isHead=bones.map(b=>/Head$|HeadTop/.test(b.name));
+  o.skeleton.pose();o.updateMatrixWorld(true);const hb=bones.find(b=>/RightHand$/.test(b.name)),fb=bones.find(b=>/RightForeArm$/.test(b.name));
+  const wp=hb.getWorldPosition(new V3()),dir=wp.clone().sub(fb.getWorldPosition(new V3())).normalize(),pos=g.attributes.position,tv=new V3();
+  const handV=new Float32Array(uv.count);for(let v=0;v<uv.count;v++){tv.fromBufferAttribute(pos,v);o.applyBoneTransform(v,tv);tv.applyMatrix4(o.matrixWorld);const d=tv.sub(wp).dot(dir);handV[v]=d;}
+  const fl=wp.distanceTo(fb.getWorldPosition(new V3()));
+  const wOn=(v,f)=>{if(f===isR){const d=handV[v];const p=d>0.02*fl?1:0;let w=0;for(let k=0;k<4;k++){const b=si.getComponent(v,k);if(f[b])w+=sw.getComponent(v,k);}return Math.max(p,w);}let w=0;for(let k=0;k<4;k++){const b=si.getComponent(v,k);if(f[b])w+=sw.getComponent(v,k);}return w;};
+  const img=o.material.map.image,W=img.width,H=img.height,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(img,0,0);
+  const D=x.getImageData(0,0,W,H).data,flip=o.material.map.flipY;
+  const P=v=>[uv.getX(v)*W,(flip?1-uv.getY(v):uv.getY(v))*H];
+  // skin tone: median of skin-like texels on the face
+  const sk=[];for(let v=0;v<uv.count;v++)if(wOn(v,isHead)>0.8){const [px,py]=P(v);const i=((Math.min(H-1,py|0))*W+Math.min(W-1,px|0))*4,r=D[i],gg=D[i+1],b=D[i+2];if(r>120&&r>gg+12&&gg>b+5&&r<245)sk.push([r,gg,b]);}
+  if(sk.length<10)return;const med=k=>sk.map(a=>a[k]).sort((a,b)=>a-b)[sk.length>>1];const col=`rgb(${med(0)},${med(1)},${med(2)})`;
+  x.fillStyle=col;x.strokeStyle=col;x.lineWidth=3;x.lineJoin='round';let nt=0,mt=null;
+  const tri=idx?idx.count/3:uv.count/3;for(let t=0;t<tri;t++){const a=idx?idx.getX(3*t):3*t,b=idx?idx.getX(3*t+1):3*t+1,cc=idx?idx.getX(3*t+2):3*t+2;
+   const wr=wOn(a,isR)+wOn(b,isR)+wOn(cc,isR);if(wr<0.3)continue;const A=P(a),B=P(b),C=P(cc);
+   if(wr>=0.9){x.beginPath();x.moveTo(...A);x.lineTo(...B);x.lineTo(...C);x.closePath();x.fill();x.lineWidth=14;x.stroke();nt++;(mt||(mt=[])).push([A,B,C]);}
+   else{(mt||(mt=[])).push([A,B,C]);}}
+  // edge of the hand (wrist): only turn the white glove leather into skin, leave the sleeve/uniform alone
+  if(mt){const m=document.createElement('canvas');m.width=W;m.height=H;const mx=m.getContext('2d');mx.fillStyle='#fff';mx.strokeStyle='#fff';mx.lineWidth=28;mx.lineJoin='round';
+   for(const [A,B,C] of mt){mx.beginPath();mx.moveTo(...A);mx.lineTo(...B);mx.lineTo(...C);mx.closePath();mx.fill();mx.stroke();}
+   const MD=mx.getImageData(0,0,W,H).data,ID=x.getImageData(0,0,W,H),d=ID.data,sc=[med(0),med(1),med(2)];
+   for(let i=0;i<d.length;i+=4){if(!MD[i])continue;const r=d[i],g2=d[i+1],b2=d[i+2],mxv=Math.max(r,g2,b2),mn=Math.min(r,g2,b2);if(mn>150&&mxv-mn<40){d[i]=sc[0];d[i+1]=sc[1];d[i+2]=sc[2];}}
+   x.putImageData(ID,0,0);}
+  const tex=new THREE.CanvasTexture(c);tex.flipY=o.material.map.flipY;tex.colorSpace=o.material.map.colorSpace;tex.wrapS=o.material.map.wrapS;tex.wrapT=o.material.map.wrapT;tex.needsUpdate=true;
+  o.material=o.material.clone();o.material.map=tex;console.log('bare right hand: painted',nt,'triangles',col);});
+}
+
 const RUN3D={ready:false, tried:false, failed:false, inst:new Map(), FT:(73/12)/0.977,   /* DW 2026-11-25: Arlis is 6 ft 1, 205 lb */ cyc:2, runDur:1.25,
   key:n=>n.replace(/mixamorig:?/,''),
   load(){ if(this.tried) return; this.tried=true;
@@ -8606,7 +8640,7 @@ const RUN3D={ready:false, tried:false, failed:false, inst:new Map(), FT:(73/12)/
     window.__loadJS('players/arlis_runner.js', ()=>{ window.__loadJS('players/arlis_moves.js', go, ()=>{ console.warn('3D fielders file missing: players/arlis_moves.js (the fielder pictures are used)'); go(); }); }, ()=>{ this.failed=true; console.warn('3D runner file missing: players/arlis_runner.js (the old runner pictures are used)'); }); },
   clone(source){ const sl=new Map(), cl=new Map(), c=source.clone(); const pt=(a,b)=>{ sl.set(b,a); cl.set(a,b); for(let i=0;i<a.children.length;i++) pt(a.children[i],b.children[i]); }; pt(source,c);
     c.traverse(n=>{ if(!n.isSkinnedMesh) return; const sm=sl.get(n); n.skeleton=sm.skeleton.clone(); n.bindMatrix.copy(sm.bindMatrix); n.skeleton.bones=sm.skeleton.bones.map(b=>cl.get(b)); n.bind(n.skeleton,n.bindMatrix); }); return c; },
-  setup(g){ const sc=g.scene, B={}; sc.traverse(o=>{ if(o.isBone) B[this.key(o.name)]=o; if(o.isMesh){ o.frustumCulled=false; if(o.material){ o.material.metalness=0; o.material.roughness=0.85; } } });
+  setup(g){ const sc=g.scene, B={}; sc.traverse(o=>{ if(o.isBone) B[this.key(o.name)]=o; if(o.isMesh){ o.frustumCulled=false; if(o.material){ o.material.metalness=0; o.material.roughness=0.85; } } }); try{ bareRightHand(sc); }catch(e){ console.error('bare hand',e); }
     sc.updateMatrixWorld(true); const V=()=>new THREE.Vector3(), l=B.LeftArm.getWorldPosition(V()), r=B.RightArm.getWorldPosition(V()); this.yaw=Math.atan2(l.z-r.z,l.x-r.x);   /* turn him so he faces +z */
     const h0=B.Hips.position.clone(), lock=c=>{ const hp=c.tracks.find(t=>/Hips\.position$/.test(t.name)); if(hp){ const v=hp.values; for(let i=0;i<v.length;i+=3){ v[i]=h0.x; v[i+2]=h0.z; } } return c; };   /* in place: the game moves him */
     this.run=lock(g.animations.find(a=>a.name==='run')); this.runDur=this.run.duration;
