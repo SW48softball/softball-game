@@ -6731,10 +6731,10 @@ function planPlay0(fl){
     try{ passiveMove(P,tp); }catch(e){}
     P.hrLive=true; P.hrOutT=tp.t; { const of=FIELDERS.list.filter(g=>g.kind==='OF').sort((a,b)=>Math.hypot(a.x-tp.x,a.y-tp.y)-Math.hypot(b.x-tp.x,b.y-tp.y))[0]; if(of) setTimeout(()=>{ if(FIELDERS.play===P) ratePop(of,'Range'); },500); }   /* DW 2026-11-22: tag on homers too */   /* DW 2026-11-18: you can still run the bases until it clears the fence, so a homer isn't given away */
     return P; }
-  const fs=FIELDERS.list, best={}, dive={}; const popUp=S.reduce((m,s)=>Math.max(m,s.h||0),0)>=35;   /* DW 2026-11-23 */
+  const fs=FIELDERS.list, best={}, dive={}; const popUp=S.reduce((m,s)=>Math.max(m,s.h||0),0)>=22;   /* DW 2026-11-25: was 35 */   /* DW 2026-11-23 */
   for(const f of fs){ if(f.kind==='C'||f.kind==='P'||f.kind==='R'||f.kind==='BR') continue;
     for(const s of S){ if(s.t<0.12 || s.h>CATCH_H) continue; const r=Math.hypot(s.x,s.y); const airS=(!L||s.t<L.t-0.02); if(f.kind==='IF' && r>IF_R && !(popUp && airS && r<=235)) continue; if(r>fenceR(Math.atan2(s.x,s.y)*180/Math.PI)-2) continue;
-      if(f.kind==='IF' && !airS && r>125) continue;   /* DW 2026-11-25 */ const d=Math.hypot(s.x-f.x,s.y-f.y), back=f.kind==='IF' && popUp && airS && r>Math.hypot(f.x,f.y)+3, need=reactT(f)+coverTime(f,d-REACH)*(back?2:1);   /* going back on a popup: half speed */
+      if(f.kind==='IF' && !airS && r>125) continue;   /* DW 2026-11-25 */ const d=Math.hypot(s.x-f.x,s.y-f.y), back=f.kind==='IF' && popUp && airS && r>Math.hypot(f.x,f.y)+3, need=reactT(f)+coverTime(f,d-REACH)*(back?1.35:1);   /* DW 2026-11-25: was 2 */   /* going back on a popup: half speed */
       if(need<=s.t){ best[f.pos]={t:s.t,x:s.x,y:s.y,h:s.h,need,back,air:(!L||s.t<L.t-0.02) && (!fl.wallAt||s.t<fl.wallAt.t)}; break; } }
     if(f.kind==='IF' && !best[f.pos]){ let m=null; for(const s of S){ if(s.t<0.12 || s.h>DIVE_H) continue; if(Math.hypot(s.x,s.y)>IF_R) break;
         const d=Math.hypot(s.x-f.x,s.y-f.y), mg=d-REACH-coverDist(f,s.t-reactT(f)); if(mg<=diveReach(f) && (!m||mg<m.mg)) m={mg,t:s.t,x:s.x,y:s.y}; }
@@ -6744,7 +6744,7 @@ function planPlay0(fl){
   let firstIF=order.find(([p])=>SPOTS[p][2]==='IF'); const firstOF=order.find(([p])=>SPOTS[p][2]==='OF');
   const byPos=p=>fs.find(f=>f.pos===p);
   if(firstIF && firstIF[1].air){ const c=order.filter(([p,v])=>SPOTS[p][2]==='IF' && v.air && v.t<=firstIF[1].t+0.4).map(([p,v])=>[p,v,Math.hypot(v.x-byPos(p).x,v.y-byPos(p).y)]).sort((a,b)=>a[2]-b[2])[0]; if(c) firstIF=[c[0],c[1]]; }
-  if(firstIF && firstIF[1].air && firstOF && firstOF[1].air && (popUp ? firstOF[1].need<firstIF[1].need : Math.hypot(firstIF[1].x,firstIF[1].y)>125)) firstIF=null;   /* DW 2026-11-23: on a popup whoever gets there first takes it */   /* outfielder's ball: he is coming in on it */
+  if(firstIF && firstIF[1].air && firstOF && firstOF[1].air && (popUp ? Math.hypot(firstIF[1].x,firstIF[1].y)>Math.max(125, Math.hypot(byPos(firstIF[0]).x,byPos(firstIF[0]).y)+35) : Math.hypot(firstIF[1].x,firstIF[1].y)>125)) firstIF=null;   /* DW 2026-11-25: both can catch it: shallow = infielder, deeper = outfielder coming in */   /* DW 2026-11-23: on a popup whoever gets there first takes it */   /* outfielder's ball: he is coming in on it */
   let fielder=null, catchPt=null, how='';
   /* DW 2026-11-18: the pitcher can stab a liner or a grounder hit right back at him (only what he can reach by reflex) */
   let stab=null; const pf=fs.find(f=>f.kind==='P');
@@ -6755,7 +6755,7 @@ function planPlay0(fl){
       if(d<=reach){ const air=(!L||s.t<L.t-0.02);
         if(Math.random()<(air?0.18:0.32)+0.25*rx+0.3*def) stab={t:s.t,x:s.x,y:s.y,h:s.h,air}; break; } } }
   if(stab){ fielder=pf; catchPt=stab; how=stab.air?'caught':'fielded'; P.stab=true; }
-  else if(firstIF && (!firstOF || firstIF[1].t<=firstOF[1].t+0.15)){ fielder=byPos(firstIF[0]); catchPt=firstIF[1]; how=catchPt.air?'caught':'fielded'; }
+  else if(firstIF && (!firstOF || firstIF[1].t<=firstOF[1].t+0.15 || (popUp && firstIF[1].air && firstOF[1].air))){ fielder=byPos(firstIF[0]); catchPt=firstIF[1]; how=catchPt.air?'caught':'fielded'; }
   else {
     const dv=Object.entries(dive).sort((a,b)=>a[1].mg-b[1].mg)[0];
     if(dv && (!firstOF || dv[1].t<firstOF[1].t)){
@@ -8185,7 +8185,7 @@ function releaseThrow(P,t){ const {f,k}=P.pending; P.pending=null; P.held=null; 
   try{ const tv=f.r?(f.r.field??f.r.fielding??50):50; if(!P.toss && P.ballFly && Math.random()<errFlash(f,null,GM.throwMiss0+GM.throwPerLevel*levelsBelow(tv),'throw',k)) wildThrow(P,f,t); }catch(e){}   /* DW 2026-11-22: throws 90% at Elite+ */
   (P.throws=P.throws||[]).push(k);
   if(P.wantCut){ P.wantCut=false; const r=tryCut(P,t); P.cutMsg=r==='high'?'Too high to cut':r==='missed'?'Already past the cutoff':''; }
-  else if(f.kind==='OF' && P.cutter && P.ballFly && P.ballFly.of && !P.ballFly.wild && (P.ballFly.len||0)>110 && Math.random()<0.8){ const r=tryCut(P,t); if(r==='cut') P.autoCut=true; }   /* DW 2026-11-22: most outfield throws are cut off */
+  else if(autoDefOn() && f.kind==='OF' && P.cutter && P.ballFly && P.ballFly.of && !P.ballFly.wild && (P.ballFly.len||0)>110 && Math.random()<0.8){ const r=tryCut(P,t); if(r==='cut') P.autoCut=true; }   /* DW 2026-11-22: most outfield throws are cut off */
 }
 function lateReplan(P,f,T,t){ const S=P.S||[]; let hit=null;
   if(f.kind==='P' && !P._pPast){ P._pPast=true; let best=null;
