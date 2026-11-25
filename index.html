@@ -586,7 +586,7 @@ setInterval(()=>{ document.querySelectorAll('.zb[data-z]').forEach(b=>{ const z=
 const ROW_RISE_RANGE = {strike:[3, 6.5], high:[6.5, 9], low:[2, 3]};
 const COL_OFFSET_INCHES = {in:-7, mid:0, out:7};
 const RELEASE_HEIGHT_FT = 3.5;
-const STRIKE_MIN_APEX_FT = 8.0, STRIKE_MAX_APEX_FT = 10.0; // DW 2026-11-16: 7.4 ft arcs look too flat for a 6'4" batter; was 6.5
+const STRIKE_MIN_APEX_FT = 7.0, STRIKE_MAX_APEX_FT = 10.0;   /* DW 2026-11-25: try 7.0 (was 8.0) */ // DW 2026-11-16: 7.4 ft arcs look too flat for a 6'4" batter; was 6.5
 const PLATE_BACK_IN = 17;
 const ZONE_DEEP_IN = 21;   // DW 2026-11-16: landing zone runs 21 in behind the plate's back point
 const ZONE_CENTER_X_IN = -0.5; // pitchers' aim point (world X, in): balances Strike-In and Strike-Out rates against the plate-centred zone
@@ -1010,8 +1010,8 @@ var FOLLOW_CAM=false; try{ const v=localStorage.getItem('sbFollowCam'); FOLLOW_C
 { const bt=$('btnFollowCam'), lab=()=>{ bt.textContent='Camera: '+(FOLLOW_CAM==='follow'?'follows the ball':FOLLOW_CAM==='zoom'?'zooms on the ball':'stays home'); bt.setAttribute('aria-pressed',!!FOLLOW_CAM); };
   lab(); bt.onclick=e=>{ FOLLOW_CAM=!FOLLOW_CAM?'follow':FOLLOW_CAM==='follow'?'zoom':false; try{ localStorage.setItem('sbFollowCam',FOLLOW_CAM==='follow'?'1':FOLLOW_CAM||'0'); }catch(_){} lab(); F3D.call('setCamMode', FOLLOW_CAM||'fixed'); e.target.blur(); }; }
 $('btnTrail').onclick=()=>{ TRAIL_ON=!TRAIL_ON; $('btnTrail').textContent=TRAIL_ON?'Ball trail: on':'Ball trail: off'; F3D.call('setTrail', TRAIL_ON); };
-let FAKES_ON = false;   // DW: for testing the pitching module, no fakes unless turned on
-$('btnFakes').onclick = ()=>{ FAKES_ON=!FAKES_ON; $('btnFakes').textContent = FAKES_ON?'Fakes: on':'Fakes: off'; };
+let FAKES_ON = (()=>{ try{ return localStorage.getItem('sbFakes')==='1'; }catch(e){ return false; } })();   /* DW 2026-11-25: on the home screen, saved */   // DW: for testing the pitching module, no fakes unless turned on
+$('btnFakes').onclick = ()=>{ FAKES_ON=!FAKES_ON; $('btnFakes').textContent = FAKES_ON?'Fakes: on':'Fakes: off'; try{ localStorage.setItem('sbFakes',FAKES_ON?'1':'0'); }catch(e){} }; $('btnFakes').textContent = FAKES_ON?'Fakes: on':'Fakes: off';
 $('btnZone').onclick = ()=>{ SHOW_ZONE=!SHOW_ZONE; $('btnZone').textContent = SHOW_ZONE?'Hide strike zone':'Show strike zone'; };
 
 /* ===== Images ===== */
@@ -1133,7 +1133,7 @@ function markSwing(t){ document.querySelectorAll('.sw').forEach(b=>b.classList.t
 let PITCH_CALL=true; try{ PITCH_CALL=localStorage.getItem('sbPitchCall')!=='0'; }catch(e){}
 function ballWhy(r){ if(!r||r.isStrike) return []; const w=[];
   if(r.hitPlate) w.push('hit the plate');
-  if(r.peakHeight>STRIKE_MAX_APEX_FT) w.push('too high'); else if(r.peakHeight<STRIKE_MIN_APEX_FT) w.push('flat');
+  if(r.peakHeight>STRIKE_MAX_APEX_FT) w.push('too high ('+r.peakHeight.toFixed(1)+' ft)'); else if(r.peakHeight<STRIKE_MIN_APEX_FT) w.push('flat ('+r.peakHeight.toFixed(1)+' ft)');
   try{ const u=Math.abs(zoneU(r.offsetIn, r.depthIn)); if(u>1) w.push((u>1.8?'way ':'')+(r.offsetIn*HAND()<0?'inside':'outside')); }catch(e){}   /* DW 2026-11-22: way inside / way outside */
   if(!r.hitPlate){ if(r.depthIn<0) w.push('short'); else if(r.depthIn<=rearEdgeIn(r.offsetIn)) w.push('never crossed the plate'); else if(r.depthIn>PLATE_BACK_IN+ZONE_DEEP_IN) w.push('heavy'); }   /* DW 2026-11-22 wording */
   return w; }
@@ -1336,7 +1336,8 @@ function battedBall(res, dMs, batterValue){
       else if(r>1-T.oppo*((window.__SPR||{}).oppo??0)) spray = -HAND()*(20+Math.random()*22);   /* opposite field */
       la = Math.round(Math.max(-8,Math.min(70,la))); } }
   { let k=1; try{ const T=bfTend(); if(T) k=Math.max(0.4,Math.min(1.8,T.gb/0.32)); }catch(e){} const pg=Math.min(0.85,(TUNE.gbAdd*k+(SW.aim==='hole'?TUNE.gbHoleSwing:0))*(1-0.5*q));
-    if(la>=8 && Math.random()<pg){ la=Math.round(-6+Math.random()*13); } }   /* DW 2026-11-23: more grounders, by each hitter's own ground-out rate, and more when he's trying to hit a hole */
+    if(la>=8 && Math.random()<pg){ la=Math.round(-6+Math.random()*13); }
+    else if(la>=8 && !window.__derbyOn && !window.__bpOn && Math.random()<((typeof HR_LIMIT!=='undefined'&&HR_LIMIT>0)?0.085:0.04)){ la=Math.round(-6+Math.random()*13); } }   /* DW 2026-11-25: 5% more grounders */   /* DW 2026-11-23: more grounders, by each hitter's own ground-out rate, and more when he's trying to hit a hole */
   if(la<8 && Math.abs(spray)<44 && Math.random()<(SW.aim==='hole'?TUNE.gbHoleAim:TUNE.gbHole)){ try{ const L=(window.FIELD3D&&FIELD3D.FIELDERS&&FIELD3D.FIELDERS.list||[]).filter(f=>f.kind==='IF').map(f=>Math.atan2(f.x,f.y)*180/Math.PI).sort((a,b)=>a-b);
       if(L.length>=2){ const H=[]; for(let i=0;i+1<L.length;i++) H.push((L[i]+L[i+1])/2); let best=H[0]; for(const h of H) if(Math.abs(h-spray)<Math.abs(best-spray)) best=h; spray=best+gauss()*2.5; } }catch(e){} }   /* DW 2026-11-23: seeing-eye grounders through the holes */
   if(bad){ if(Math.random()<0.45) spray=raw; spray += gauss()*12; la += gauss()*10; la=Math.round(Math.max(-8,Math.min(70,la))); }   /* off the plate: often can't hit it where he wants */
@@ -5483,6 +5484,7 @@ const SAVE_KEY=window.__derbyOn?'sbDerbySave1':window.__bpOn?'sbBpSave1':'sbGame
 function saveGame(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify({v:1, at:Date.now(), order:S.order, outs:S.outs, balls:S.balls, strikes:S.strikes, bases:S.bases, runs:S.runs, box:S.box,
   totalPitches:S.totalPitches, strikeCount:S.strikeCount, walks:S.walks, ks:S.ks, inning:S.inning, innRuns:S.innRuns, innStart:S.innStart, half:S.half?1:0, other:S.other, hrs:S.hrs|0, lob:S.lob|0, hrFix:1, paLog:S.paLog, log:($('log')||{}).innerHTML||''})); }catch(e){} }
 /* DW 2026-11-18: a phone can close the page when it is turned sideways or sent to the background; save first so it comes back to the same count */
+window.addEventListener('webglcontextlost',e=>{ try{ e.preventDefault(); }catch(_){} try{ saveGame(); }catch(_){} try{ const k='sbCtxLost', last=+sessionStorage.getItem(k)||0; if(Date.now()-last>20000){ sessionStorage.setItem(k,String(Date.now())); sessionStorage.setItem('sbHomeGo','1'); setTimeout(()=>location.reload(),350); } }catch(_){} }, true);   /* DW 2026-11-25: iPhone turned sideways */
 { const quick=()=>{ if(!window.__playLive) saveGame(); }; window.addEventListener('pagehide',quick); document.addEventListener('visibilitychange',()=>{ if(document.hidden) quick(); });
   window.addEventListener('orientationchange',quick); try{ screen.orientation&&screen.orientation.addEventListener('change',quick); }catch(_){} }
 function loadGame(){ try{ const g=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); if(!g||g.v!==1) return false;
@@ -6685,7 +6687,7 @@ function errChance(f, air){ window.__lastHard=!air && !!arguments[2] && !(f&&f.k
   const v=(f&&f.r)?(f.r.field??f.r.fielding??50):50, below=Math.max(0,Math.min(29,Math.round((99-v)/(98/29)))); return (air?GM.flyMiss0:(arguments[2]?GM.gbHardMiss0:GM.gbMiss0))+GM.missPerLevel*below; }
 const GM={ ifPop0:0.01, ifPopWind:0.05, windyMph:10, flyMiss0:0.02, gbMiss0:0.05, gbHardMiss0:0.20, throwMiss0:0.03, throwPerLevel:0.0025, missPerLevel:0.01 };
 window.__GM=GM;   /* test hook */
-function errFlash(f,cp,p,kind,k){ try{ const nm=String((typeof NAME!=='undefined'&&NAME[f.pos])||f.pos||'').replace(/ \(.*\)/,'');
+function errFlash(f,cp,p,kind,k){ p*=0.75;   /* DW 2026-11-25: 25% fewer errors */ try{ const nm=String((typeof NAME!=='undefined'&&NAME[f.pos])||f.pos||'').replace(/ \(.*\)/,'');
     const lab=kind==='throw'?'Throw':kind==='wall'?'Off the wall':(cp&&cp.air)?'Catch':'Fielding';
     try{ const L=window.__errL||(window.__errL=[]), last=nm.split(' ').slice(-1)[0]||nm, bn={D:'1st',W:'2nd',A:'3rd',X:'home',S:'the pitcher'}[k]||'';
       L.push(last+' '+(kind==='throw'?'throw'+(bn?' to '+bn:''):kind==='wall'?'off the wall':(cp&&cp.air)?(f.kind==='OF'?'catch':'popup catch'):(window.__lastHard?'hard grounder':'grounder'))+' '+(p*100).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')+'%'); }catch(e){}
@@ -6731,7 +6733,7 @@ function planPlay0(fl){
   const fs=FIELDERS.list, best={}, dive={}; const popUp=S.reduce((m,s)=>Math.max(m,s.h||0),0)>=35;   /* DW 2026-11-23 */
   for(const f of fs){ if(f.kind==='C'||f.kind==='P'||f.kind==='R'||f.kind==='BR') continue;
     for(const s of S){ if(s.t<0.12 || s.h>CATCH_H) continue; const r=Math.hypot(s.x,s.y); const airS=(!L||s.t<L.t-0.02); if(f.kind==='IF' && r>IF_R && !(popUp && airS && r<=235)) continue; if(r>fenceR(Math.atan2(s.x,s.y)*180/Math.PI)-2) continue;
-      const d=Math.hypot(s.x-f.x,s.y-f.y), back=f.kind==='IF' && popUp && airS && r>Math.hypot(f.x,f.y)+3, need=reactT(f)+coverTime(f,d-REACH)*(back?2:1);   /* going back on a popup: half speed */
+      if(f.kind==='IF' && !airS && r>125) continue;   /* DW 2026-11-25 */ const d=Math.hypot(s.x-f.x,s.y-f.y), back=f.kind==='IF' && popUp && airS && r>Math.hypot(f.x,f.y)+3, need=reactT(f)+coverTime(f,d-REACH)*(back?2:1);   /* going back on a popup: half speed */
       if(need<=s.t){ best[f.pos]={t:s.t,x:s.x,y:s.y,h:s.h,need,back,air:(!L||s.t<L.t-0.02) && (!fl.wallAt||s.t<fl.wallAt.t)}; break; } }
     if(f.kind==='IF' && !best[f.pos]){ let m=null; for(const s of S){ if(s.t<0.12 || s.h>DIVE_H) continue; if(Math.hypot(s.x,s.y)>IF_R) break;
         const d=Math.hypot(s.x-f.x,s.y-f.y), mg=d-REACH-coverDist(f,s.t-reactT(f)); if(mg<=diveReach(f) && (!m||mg<m.mg)) m={mg,t:s.t,x:s.x,y:s.y}; }
@@ -6773,7 +6775,9 @@ function planPlay0(fl){
     if(Math.random()<pMiss){ let g=null; for(const s of S){ if(s.t<L.t || s.h>CATCH_H) continue; const r=Math.hypot(s.x,s.y); if(r>fenceR(Math.atan2(s.x,s.y)*180/Math.PI)-2) continue;
         if(reactT(fielder)+coverTime(fielder,Math.hypot(s.x-fielder.x,s.y-fielder.y)-REACH)<=s.t){ g=s; break; } }
       if(!g){ const e=S.at(-1); g={x:e.x,y:e.y,h:0,t:Math.max(e.t, reactT(fielder)+coverTime(fielder,Math.hypot(e.x-fielder.x,e.y-fielder.y)-REACH))}; }
-      catchPt={t:g.t,x:g.x,y:g.y,h:g.h,air:false}; how='fielded'; P.justMissed=true; } }
+      catchPt={t:g.t,x:g.x,y:g.y,h:g.h,air:false}; how='fielded'; P.justMissed=true;
+      if(fielder.kind==='IF' && Math.hypot(catchPt.x,catchPt.y)>130){ let bo=null,bd=1e9; for(const f of fs) if(f.kind==='OF'){ const d=Math.hypot(catchPt.x-f.x,catchPt.y-f.y); if(d<bd){ bd=d; bo=f; } }   /* DW 2026-11-25: past the infield it's the outfielder's ball */
+        if(bo){ fielder=bo; catchPt=Object.assign({},catchPt,{t:Math.max(catchPt.t, reactT(bo)+coverTime(bo,bd-REACH))}); } } } }
   P.fielder=fielder; P.catch=catchPt; P.how=how; setTimeout(()=>{ if(FIELDERS.play===P) ratePop(fielder,'Range'); },500);
   /* DW 2026-11-18: playing it off the wall: an outfielder can bobble the carom; his position defense decides how often */
   const offWall=fl.wallAt && catchPt && catchPt.t>=fl.wallAt.t && fielder.kind==='OF', wallErr=offWall ? 0.03+0.25*(1-((fielder.r&&(fielder.r.field??fielder.r.fielding))??50)/99)+(fl.wallAt.low?0.04:0) : 0;
@@ -6804,7 +6808,7 @@ function chasers(x,y,except,stopShort){   // the outfielder(s) nearest the ball 
 function targetBase(P){ if(P.lastKey) return P.lastKey; try{ const r=leadRunner(P); if(r && !r.out){ const to=Math.max(Math.ceil(Math.max(r.target,r.s)-1e-6), sureBase(P)+1); return to>=4?'X':to===3?'A':'W'; } }catch(e){} return 'W'; }
 function sureBase(P){ let best=0; try{ const now=P.now||0, tp=Math.max((P.catch&&P.catch.t)||0, P.cutReady||0), dt=Math.max(0,tp-now);   /* DW 2026-11-23: where the runners will be when the outfielder picks it up */
   for(const r of (P.runners||[])){ if(r.out||r.scored) continue; const go=r.batter||r.target>r.s+0.01||r.forced, p=Math.min(4, r.s+(go?dt*(18+10*(r.speed||75)/99)/BASE_FT:0)); best=Math.max(best, Math.floor(p+0.5)); } }catch(e){} return Math.min(3,best); }   /* past halfway = he's making that base */   // where the cutoff lines up before you pick (2nd)
-const CUT_AT=0.7;   /* the cutoff man stands 70% of the way from the outfielder to the base, on the line of the throw */
+const CUT_AT=0.6;   /* DW 2026-11-25: 60% */   /* the cutoff man stands 70% of the way from the outfielder to the base, on the line of the throw */
 function cutPoint(P){ const b=bagSpot(targetBase(P)), h=P.pending&&P.pending.f.kind==='OF'?P.pending.f:(P.held&&P.held.f.kind==='OF'?P.held.f:null), p=h||P.ofPick; return [p.x+(b[0]-p.x)*CUT_AT, p.y+(b[1]-p.y)*CUT_AT]; }
 function pickCutoff(P,used){ const want={LF:'SS',RF:'2B',CF:'MI'}[P.cutFor]; if(want && !used.has(want)){ const w=FIELDERS.list.find(f=>f.pos===want&&f.kind==='IF'); if(w) return w; }
   const [cx,cy]=cutPoint(P); let best=null,bd=1e9;
@@ -8237,6 +8241,7 @@ function stepPlay(t,dt){
     for(const g of FIELDERS.list){ if(g===P.fielder || !g.task) continue; if(g.task.type==='chase' || (g.task.type==='divemiss' && t<g.task.at-0.3)){ g.task={type:'none'}; if(g.anim==='move_right') setAnim(g,'ready',false); } } }
   for(const f of FIELDERS.list){
     const T=f.task; if(!T) continue;
+    if(T.type==='walkoff'){ const dx=T.tx-f.x, dy=T.ty-f.y, d=Math.hypot(dx,dy); if(d>1){ const st=Math.min(d,8*dt); f.x+=dx/d*st; f.y+=dy/d*st; f.animRate=0.5; if(f.anim!=='move_right') setAnim(f,'move_right',false,screenDir(f,T.tx,T.ty)>0); else f.flip=screenDir(f,T.tx,T.ty)>0; } else if(f.anim==='move_right'){ f.animRate=1; setAnim(f,'ready',false); } continue; }   /* DW 2026-11-25 */
     if(T.type==='chase'){ if(!T.cl){ T.cl=1; const q=inPlay(T.tx,T.ty); T.tx=q[0]; T.ty=q[1]; } const dx=T.tx-f.x, dy=T.ty-f.y, d=Math.hypot(dx,dy);
       if(t>reactT(f) && d>(T.stop||1)){ const step=Math.min(d-(T.stop||1), runStep(f,dt)); f.x+=dx/d*step; f.y+=dy/d*step; if(f.anim!=='move_right') setAnim(f,'move_right',false,screenDir(f,T.tx,T.ty)>0); }
       else if(f.anim==='move_right') setAnim(f,'ready',false);
@@ -8309,7 +8314,7 @@ function runBuild(start,s0,D){ const R=RUNP.SW/0.293, mid=[0,53*BK], k0=Math.flo
   const sub=(a,b)=>[a[0]-b[0],a[1]-b[1]], len=a=>Math.hypot(a[0],a[1]), rot=(a,t)=>[a[0]*Math.cos(t)-a[1]*Math.sin(t), a[0]*Math.sin(t)+a[1]*Math.cos(t)], ang=(p,c)=>Math.atan2(p[1]-c[1],p[0]-c[0]);
   const arc=(C,Rr,a0,a1)=>{ let da=a1-a0; while(da<-1e-6) da+=2*Math.PI; while(da>=2*Math.PI) da-=2*Math.PI; if(da>4.6) return; const n=Math.max(1,Math.ceil(da*Rr/0.5)); for(let i=1;i<=n;i++){ const a=a0+da*i/n; raw.push([C[0]+Rr*Math.cos(a),C[1]+Rr*Math.sin(a)]); } };
   const SAG=11.25, half=BASE_FT/2, Rb=(half*half+SAG*SAG)/(2*SAG), th=Math.asin(half/Rb), cur=start;
-  if(D-k0<2){ raw.push(BASEXY[D].slice()); mark[D]=1; }
+  if(D-k0<2){ const on=pathXY(Math.min(D-0.05, s0+Math.min(0.12,(D-s0)/2))); if(Math.hypot(on[0]-start[0],on[1]-start[1])>0.8) raw.push(on); raw.push(BASEXY[D].slice()); mark[D]=raw.length-1; }   /* DW 2026-11-25: straight line (tag-ups too) */
   const q=Math.SQRT1_2, TOUCH=[null,[q*(BASE_FT-4),q*BASE_FT],[0,106*BK-Math.SQRT2],[-q*(BASE_FT-4),q*BASE_FT],null], PB=i=>(i>k0&&i<D&&TOUCH[i])||BASEXY[i];   /* DW 2026-11-20: a bag he rounds is always touched on its inside corner (the corner pointing at the pitcher) */
   if(D-k0>=2) for(let i=k0+1;i<=D;i++){ const B=PB(i), A=PB(i-1), first=i===k0+1;
     if(i===1){ const R=RUNP.T1/1.5/0.293 /* DW 2026-11-20: wider bow before 1st on a ball outside the infield (sandbox 'Bow out before 1st base' 17 ft, provisional) */, h1=ang(PB(2),B)-th, C=[B[0]-R*Math.sin(h1),B[1]+R*Math.cos(h1)], v=sub(C,cur), d=len(v);
@@ -8322,7 +8327,7 @@ function runBuild(start,s0,D){ const R=RUNP.SW/0.293, mid=[0,53*BK], k0=Math.flo
       if(d>R*1.001){ const be=Math.asin(R/d), dr=rot([v[0]/d,v[1]/d],be), L=Math.sqrt(d*d-R*R), T=[B[0]+dr[0]*L,B[1]+dr[1]*L]; arc(C,R,ang(A,C),ang(T,C)); } }
     raw.push(B.slice()); mark[i]=raw.length-1; }
   let cum=[0]; for(let i=1;i<raw.length;i++) cum.push(cum[i-1]+len(sub(raw[i],raw[i-1])));
-  if(D-k0<2){ const bs={}; bs[D]=cum[1]; return {raw,cum,bs,s0,k0,D,i:0}; }
+  if(D-k0<2){ const bs={}; bs[D]=cum[cum.length-1]; return {raw,cum,bs,s0,k0,D,i:0}; }
   /* even 0.5 ft spacing, then round off the small corner where two curves meet at a bag (two 4 ft passes, as in the sandbox) */
   const LT=cum[cum.length-1], N=Math.max(2,Math.ceil(LT/0.5)), ds=LT/N, P=[]; let j=0;
   for(let i=0;i<=N;i++){ const sd=Math.min(LT,i*ds); while(j<raw.length-2&&cum[j+1]<sd) j++; const u=(sd-cum[j])/Math.max(1e-9,cum[j+1]-cum[j]); P.push([raw[j][0]+(raw[j+1][0]-raw[j][0])*u, raw[j][1]+(raw[j+1][1]-raw[j][1])*u]); }
@@ -8342,7 +8347,7 @@ function runPrep(r,dir,P){ const f=r.f;
   const c=r.cp, k=Math.min(c.D-1,Math.floor(r.s+1e-6)), L= k===c.k0 ? c.bs[k+1]/Math.max(0.02,(k+1-c.s0)) : c.bs[k+1]-c.bs[k]; return BASE_FT/Math.max(40*BK,Math.min(160*BK,L)); }
 function runXY(r,dir){ const p=runXY0(r,dir); if(r.off && dir>0 && r.cp){ const k=Math.exp(-(performance.now()-r.off[2])/250); if(k<0.01) r.off=null; else { p[0]+=r.off[0]*k; p[1]+=r.off[1]*k; } } return p; }
 function runXY0(r,dir){ const c=r.cp;
-  if(dir<0||!c){ const b=r.bk; if(!b) return pathXY(r.s); const k=Math.max(0,Math.ceil(b.s0-1e-6)-1), B=BASEXY[k], u=(b.s0-k)>1e-6?Math.max(0,Math.min(1,(r.s-k)/(b.s0-k))):0; return [B[0]+(b.x-B[0])*u,B[1]+(b.y-B[1])*u]; }
+  if(dir<0||!c){ const b=r.bk; if(!b) return pathXY(r.s); const k=Math.max(0,Math.ceil(b.s0-1e-6)-1), B=BASEXY[k], u=(b.s0-k)>1e-6?Math.max(0,Math.min(1,(r.s-k)/(b.s0-k))):0; if(r.s<k-1e-6) return pathXY(r.s);   /* DW 2026-11-25: past the bag, back along the line */ return [B[0]+(b.x-B[0])*u,B[1]+(b.y-B[1])*u]; }
   const s=Math.max(c.s0,Math.min(c.D,r.s)), k=Math.min(c.D-1,Math.floor(s+1e-9)); let a;
   if(k===c.k0) a=c.bs[k+1]*(s-c.s0)/Math.max(1e-6,(k+1-c.s0)); else a=c.bs[k]+(c.bs[k+1]-c.bs[k])*(s-k);
   let i=c.i||0; if(c.cum[i]>a) i=0; while(i<c.cum.length-2&&c.cum[i+1]<a) i++; c.i=i; const u=Math.max(0,Math.min(1,(a-c.cum[i])/Math.max(1e-9,c.cum[i+1]-c.cum[i])));
@@ -8399,6 +8404,8 @@ function stepRunners(P,t,dt){ if(!P.runners) initRunners(P); if(t<P.runStart) { 
         const fl=screenDir(h,best.f.x,best.f.y)>0; if(h.anim!=='move_right') setAnim(h,'move_right',false,fl); else h.flip=fl; } }
     else { P.chaseT=0; P.chaseV=0; } }
   else { P.chaseT=0; P.chaseV=0; }
+  for(const k of [1,2,3,4]){ if(onBag(k)){ if(P.hbK!==k){ P.hbK=k; P.hbT=t; } } else if(P.hbK===k) P.hbK=null; }   /* DW 2026-11-25 */
+  const tagReady=k=>P.hbK===k && t-P.hbT>=0.2;
   for(const r of P.runners){ if(r.exit){ stepExit(r,dt); const E=r.exit; if(E.i<E.pts.length && E.pts[E.i][2]==='run') busy=true; } }   /* the play waits while the batter runs through 1st */   /* walking off never holds up the next batter */
   for(const r of P.runners){ if(r.out||r.scored) continue; const f=r.f; f.running=true; if(f.kind==='BR') f.on=true;
     if(h && !r.ovPh && !r.sl && Math.abs(r.s-Math.round(r.s))*BASE_FT>RUN_SNAP && Math.hypot(h.x-f.x,h.y-f.y)<3.2){ r.out=true; r.res='tagged out'; startExit(r); continue; }   /* a fielder with the ball tags a runner who is off the base */
@@ -8430,7 +8437,7 @@ function stepRunners(P,t,dt){ if(!P.runners) initRunners(P); if(t<P.runStart) { 
     if(dir>0 && r.target-r.s<=0.008 && r.target<4 && Math.abs(r.target-Math.round(r.target))<1e-6 && f.anim==='move_right' && typeof RUNK!=='undefined' && RUNK.up && leadRunner(P)===r && !r.keyLock && !(r.batter && r.target<=1 && P.fielder && P.fielder.kind!=='OF')) r.target=Math.round(r.target)+1;   /* Up held and he is a step from the bag: he keeps going, no stop on the bag */
     if(Math.abs(r.target-r.s)>0.008){ busy=true; r.moved=true;
       const next=dir>0?Math.floor(r.s+1e-6)+1:Math.ceil(r.s-1e-6)-1;   /* the bag he's heading for */
-      if(onBag(next)){ const dbl=P.flyBack&&!r.tagged&&dir<0, frc=dbl||forceAt(P,r,next,dir); if(frc || (Math.abs(next-r.s)*BASE_FT<=4.5 && Math.abs(next-r.s)*BASE_FT>2.8 && r.safeOn!==next)){ r.out=true; r.res=(dbl?'doubled off ':frc?'out at ':'tagged out at ')+['home','1st','2nd','3rd','home'][next]; startExit(r); continue; } }
+      if(onBag(next)){ const dbl=P.flyBack&&!r.tagged&&dir<0, frc=dbl||forceAt(P,r,next,dir); if(frc || (Math.abs(next-r.s)*BASE_FT<=4.5 && Math.abs(next-r.s)*BASE_FT>2.8 && r.safeOn!==next && tagReady(next))){ r.out=true; r.res=(dbl?'doubled off ':frc?'out at ':'tagged out at ')+['home','1st','2nd','3rd','home'][next]; startExit(r); continue; } }
       const rk=runPrep(r,dir,P); let ns=r.s+dir*Math.min(Math.abs(r.target-r.s), sp*dt*rk);
       if(dir>0 && sp*dt*rk>=Math.abs(r.target-r.s) && r.target<4 && Math.abs(r.target-Math.round(r.target))<1e-6 && typeof RUNK!=='undefined' && RUNK.up && leadRunner(P)===r && !r.keyLock && !(r.batter && r.target<=1 && P.fielder && P.fielder.kind!=='OF')){ const left=sp*dt*rk-Math.abs(r.target-r.s); r.target=Math.round(r.target)+1; ns=Math.min(r.target, ns+left); } if(dir>0 && Math.floor(ns+1e-6)>Math.floor(r.s+1e-6)) r.last=Math.floor(ns+1e-6);
       if(r.batter && !r.ovDone && dir>0 && r.s<1 && ns>=1-1e-6 && r.target<=1 && P.fielder && P.fielder.kind!=='OF' && !(P.how==='caught'&&!P.bobble)){ r.s=1; r.ovDone=true; r.ovPh='out'; r.ov=0; r.ovV=sp*BASE_FT; r.ovMax=12+Math.random(); continue; }
@@ -8445,15 +8452,17 @@ function stepRunners(P,t,dt){ if(!P.runners) initRunners(P); if(t<P.runStart) { 
   const B=P.runners.find(r=>r.batter); if(B && !P.run) P.run={}; if(B){ P.run.done=!busy; P.run.res = B.out ? B.res : B.s>=1 ? (B.s>=4?'scored':B.s>=3?'safe at 3rd':B.s>=2?'safe at 2nd':'safe at 1st') : null; }
   if(busy || (P.hrLive && !P.hrGone)) P.finishAt=null; else if(P.finishAt==null && !P.held && !P.ballFly && t>P.runStart+6) P.finishAt=t+1.5;
   if(flight && flight.windHeld && !P.saidWind){ const tl=(P.how==='caught'&&P.catch)?P.catch.t:(flight.landed?flight.landed.t:1e9); if(t>=tl+0.7){ P.saidWind=true; try{ liveCall('@Q:The wind held that one up!'); }catch(e){} } }   /* DW 2026-11-22 */
-  if(!P.passive && !P.practice && !P.hrLive){ const outs=runOuts()+P.runners.filter(r=>r.out).length; if(outs>=3){ if(!P.thirdOutT) P.thirdOutT=t; if(!P.saidEnd && t>=P.thirdOutT+0.9){ P.saidEnd=true; try{ liveCall('@Q:End of the inning!'); }catch(e){} } P.finishAt=Math.min(P.finishAt==null?1e9:P.finishAt, P.thirdOutT+2.8); } }   /* DW 2026-11-22: third out ends it, whatever is still moving */
+  if(!P.passive && !P.practice && !P.hrLive){ const outs=runOuts()+P.runners.filter(r=>r.out).length; if(outs>=3){ if(!P.thirdOutT) P.thirdOutT=t; if(!P.saidEnd && t>=P.thirdOutT+0.9){ P.saidEnd=true; try{ liveCall('@Q:End of the inning!'); }catch(e){} try{ bigNote('3 OUTS · END OF THE INNING'); }catch(e){} for(const g of FIELDERS.list){ if(g.kind==='IF'||g.kind==='OF'||g.kind==='P'||g.kind==='C'){ const side=g.x<0?-1:1; g.task={type:'walkoff', tx:side*(DUGOUT[0]+((g.x*7)%9)), ty:DUGOUT[1]+((g.y*3)%7)}; } } } P.finishAt=Math.min(P.finishAt==null?1e9:P.finishAt, P.thirdOutT+3.0); }   /* DW 2026-11-25: they walk off for 2 seconds */ }   /* DW 2026-11-22: third out ends it, whatever is still moving */
 }
-const DUGOUT=[82,26];   /* DW: an out runner veers off into foul ground and walks back to the dugout (1st-base side) */
+const DUGOUT=[82,26];
+function bigNote(txt){ const D=(globalThis.top&&globalThis.top.document)||document; let el=D.getElementById('bigNote'); if(!el){ el=D.createElement('div'); el.id='bigNote'; el.style.cssText="position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:70;pointer-events:none;padding:10px 26px;border-radius:12px;background:rgba(10,14,20,.86);border:2px solid #ffe600;color:#ffe600;font:800 34px/1 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.06em;box-shadow:0 6px 24px rgba(0,0,0,.5);transition:opacity .35s"; D.body.appendChild(el); } el.textContent=txt; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>{ el.style.opacity='0'; },1900); }   /* DW 2026-11-25: make double plays and the 3rd out clear */   /* DW: an out runner veers off into foul ground and walks back to the dugout (1st-base side) */
 function outNumWord(P){ let o=0; try{ o=runOuts()+((P&&P.runners)||[]).filter(q=>q.out).length; }catch(e){ return ''; } return o>=1&&o<=3?' Out number '+['one','two','three'][o-1]+'.':''; }   /* DW 2026-11-23 */
 function outCall(r){ const P=FIELDERS.play; if(!P||P.passive||!r||!r.res) return; if(/catch/.test(r.res)){ const w=outNumWord(P); if(w) liveCall('@Q:'+w.trim()); return; } P.nOuts=(P.nOuts||0)+1; const n=P.nOuts;
   const L=f=>{ const w=String((f&&NAME[f.pos])||'').replace(/ \(.*\)/,'').trim().split(/\s+/); return w[w.length-1]||'he'; }, h=P.held&&P.held.f, p=P.passFrom, m=/(home|1st|2nd|3rd)/.exec(r.res), base=m?({home:'home','1st':'first','2nd':'second','3rd':'third'})[m[1]]:'';
   let t='';
   if(n===1){ if(r.batter && base==='first'){ const w=outNumWord(P); if(w) liveCall('@Q:'+w.trim()); return; } if(/doubled/.test(r.res)) t='And he is doubled off '+base+'!'; else if(h&&p&&p!==h) t=L(p)+' over to '+L(h)+' for one'; else if(h) t=L(h)+(/tagged/.test(r.res)?' puts the tag on for one':' steps on '+(base||'the bag')+' for one'); }
-  else if(n===2) t=(P.nOuts1st?'and ':'and on to ')+(base||'the bag')+(base==='first'?', in time for the double play!':' for the double play!');
+  if(n===2) try{ bigNote('DOUBLE PLAY!'); }catch(e){}
+  if(n===2) t=(P.nOuts1st?'and ':'and on to ')+(base||'the bag')+(base==='first'?', in time for the double play!':' for the double play!');
   else if(n===3) t='Triple play!';
   if(n===1 && r.batter) P.nOuts1st=true; { const w=outNumWord(P); t=t?t.replace(/[.!]?$/,m=>m||'.')+w:w.trim(); } if(t) liveCall('@Q:'+t); }   /* DW 2026-11-22 */
 function startExit(r){ try{ outCall(r); }catch(e){} const f=r.f; const pts=[];
@@ -15358,7 +15367,7 @@ function cpuBatTick(){ if(!M.cpuBats() || !ball || ball.done || !pendingResult |
   else if(r.isStrike) p=Math.min(0.98,(st>=2?0.95:0.78+0.12*eye) - (bl===3&&st<2?0.4:0));
   else p=Math.max(0.03,(0.34-0.26*eye)+(st>=2?0.15:0)-(bl===3?0.15:0));
   if(Math.random()>=p) return;
-  const at=ball.t0+pendingResult.flight.tFront*1000, sd=35+75*(1-bat), err=-25+gauss()*sd;
+  const at=ball.t0+pendingResult.flight.tFront*1000, SPq=window.__SPR||{}, insIn=-(r.offsetIn||0)*HAND(), sd=18+42*(1-bat), err=-insIn*(SPq.loc??4)+gauss()*sd;   /* DW 2026-11-25: the computer was hitting badly */
   plan={ball, t:at-SWING_CONTACT_MS+err, type:pickSwing(b)}; const pl=plan; setTimeout(()=>{ if(plan===pl) cpuBatFire(); }, Math.max(0,plan.t-performance.now())); }   /* a timer, not the next frame, so a slow frame doesn't make him late */
 function cpuBatFire(){ if(!plan) return; if(plan.ball!==ball || !M.cpuBats()){ plan=null; return; }
   if(performance.now()>=plan.t){ const t=plan.type; plan=null; cpuSwinging=true; try{ swingKey(t); }finally{ cpuSwinging=false; } } }
@@ -15653,11 +15662,11 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
    +'<div class="hsStep"><b>4. Wind</b><div class="hsOpts">'+opt('hsWind','real','Real wind','Typical wind for the field\'s city on the game date; it can shift during the game',true)+opt('hsWind','pick','Pick the wind','Choose direction, speed and how much it changes',false)+'</div>'
      +'<label class="hsRow" id="hsDateRow"><span>Game date</span><input type="date" id="hsDate"></label>'
      +'<div id="hsPickBox" class="hide"><label class="hsRow"><span>Direction</span><select id="hsDir">'+dirs+'</select></label><label class="hsRow"><span>Speed</span><input type="range" id="hsMph" min="0" max="20" value="10"> <b id="hsMphV">10</b> mph</label><label class="hsRow"><span>Changes</span><input type="range" id="hsChg" min="0" max="100" value="30"> <b id="hsChgV">30</b>%</label></div></div>'
-   +'<div class="hsStep" id="hsRules"><b>5. Rules</b><label class="hsRow"><span>Innings</span><select id="hsInn">'+[1,2,3,4,5,6,7,8,9].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select></label><label class="hsRow"><span>Home run limit</span><select id="hsHr">'+hrl+'</select></label></div></div>'
+   +'<div class="hsStep" id="hsRules"><b>5. Rules</b><label class="hsRow"><span>Innings</span><select id="hsInn">'+[1,2,3,4,5,6,7,8,9].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select></label><label class="hsRow"><span>Home run limit</span><select id="hsHr">'+hrl+'</select></label><label class="hsRow"><span>Pitcher fakes</span><select id="hsFakes"><option value="1">On: 0 to 3 fakes a pitch</option><option value="0">Off</option></select></label></div></div>'
    +'<div class="hsGo"><button id="hsPlay" type="button">Play ball</button>'+(start==='menu'||start==='new'?'<button id="hsCancel" class="sec" type="button">Back to the game</button>':'')+'<span id="hsWhy" class="hsNote"></span></div></div>';
   D.body.appendChild(w); for(const ev of ['keydown','keyup','keypress']) w.addEventListener(ev,x=>{ if(x.key==='Enter'&&x.type==='keydown'&&!/SELECT/.test(x.target.tagName)) w.querySelector('#hsPlay').click(); x.stopPropagation(); });
   const q=s=>w.querySelector(s), val=n=>{ const e=w.querySelector('input[name='+n+']:checked'); return e?e.value:''; };
-  q('#hsVis').value=TEAMS[0].name; q('#hsPark').value=PARK_ID; q('#hsBall').value=ballKind(); window.__ballMark(q('#hsBall'),PARK_ID); q('#hsPark').addEventListener('change',()=>{ const pk=q('#hsPark').value; q('#hsBall').value=ballDefault(pk); window.__ballMark(q('#hsBall'),pk); }); q('#hsSide').value=LS('sbUserSide')||'vis'; q('#hsHr').value=String(HR_LIMIT); q('#hsInn').value=String(innN());
+  q('#hsVis').value=TEAMS[0].name; q('#hsPark').value=PARK_ID; q('#hsBall').value=ballKind(); window.__ballMark(q('#hsBall'),PARK_ID); q('#hsPark').addEventListener('change',()=>{ const pk=q('#hsPark').value; q('#hsBall').value=ballDefault(pk); window.__ballMark(q('#hsBall'),pk); }); q('#hsSide').value=LS('sbUserSide')||'vis'; q('#hsHr').value=String(HR_LIMIT); q('#hsInn').value=String(innN()); q('#hsFakes').value=(LS('sbFakes')==='1')?'1':'0';
   let order=dSel.slice(); w.querySelectorAll('.hsDP').forEach(c=>c.addEventListener('change',()=>{ order=order.filter(n=>n!==c.value); if(c.checked) order.push(c.value); }));
   q('#hsAll').onclick=()=>{ w.querySelectorAll('.hsDP').forEach(c=>{ if(!c.checked){ c.checked=true; order.push(c.value); } }); sync(); };
   q('#hsNone').onclick=()=>{ w.querySelectorAll('.hsDP').forEach(c=>c.checked=false); order=[]; sync(); };
@@ -15685,7 +15694,7 @@ function showHome(start){ let w=$('teamPick'); if(w) w.remove(); const D=documen
     const dby=val('hsType')==='derby', bpm=val('hsType')==='bp'; LS('sbGameType',dby?'derby':bpm?'bp':'game'); if(!bpm) LS('sbDerbyState',null);
     if(bpm){ LS('sbBpBatter',q('#hsBpBat').value); LS('sbBpDefense',q('#hsBpDef').value); LS('sbBpPitch',val('hsBpP')||'bp'); LS('sbBpCur',null); LS('sbBpSave1',null); }
     if(dby){ const ticked=[...w.querySelectorAll('.hsDP:checked')].map(c=>c.value); order=order.filter(n=>ticked.includes(n)).concat(ticked.filter(n=>!order.includes(n))); LS('sbDerbyPlayers',JSON.stringify(order)); LS('sbDerbyCut2',q('#hsCut2').value); LS('sbDerbyCutF',q('#hsCutF').value); }
-    LS('sbInnings',q('#hsInn').value);
+    LS('sbInnings',q('#hsInn').value); { const fv=q('#hsFakes').value; LS('sbFakes',fv); try{ FAKES_ON=fv==='1'; $('btnFakes').textContent=FAKES_ON?'Fakes: on':'Fakes: off'; }catch(e){} }
     const vis=(dby||bpm)?TEAMS[0].name:q('#hsVis').value;
     if(vis!==TEAMS[0].name){ LS('sbVisitors',vis); const u={...UNI0}; for(const k of ['Shirt','Pants','Stripe','Hat','Pipe','Stripe2']) [u['bat'+k],u['fld'+k]]=[u['fld'+k],u['bat'+k]]; LS('sbUniform',JSON.stringify(u)); }
     LS('sbPark',q('#hsPark').value); { const bv=q('#hsBall').value; try{ if(bv===ballDefault(q('#hsPark').value)) localStorage.removeItem('sbBall'); else localStorage.setItem('sbBall',bv); }catch(e){} } if(!dby&&!bpm) LS('sbMode',val('hsMode')); LS('sbUserSide',q('#hsSide').value); LS('sbHrLimit',q('#hsHr').value); LS('sbResume','on');
@@ -16066,3 +16075,15 @@ if(window.__homeHold) showHome('load');
 })();
 
 </script>
+<style>/* brother_2026-11-25: phone held sideways (touch screen, short window): smaller boxes so nothing sits on top of anything */
+@media (pointer:coarse) and (max-height:520px){
+  .stage .hud{font-size:10.5px!important;max-width:52%}
+  .stage .windchip{top:50px!important;font-size:10.5px!important;max-width:36%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stage .scbug{transform:translateY(38px) scale(.7);transform-origin:top right}
+  .stage #teamBox{zoom:.62;margin-top:120px}
+  .stage #nowBat{zoom:.66}
+  .stage #btnFieldView{font-size:11px!important}
+  #bigNote{font-size:24px!important}
+  #pitchCall{font-size:18px!important;padding:5px 14px!important}
+}
+</style>
