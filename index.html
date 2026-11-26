@@ -6753,13 +6753,36 @@ function inPlay(x,y){ const a=Math.atan2(x,y)*180/Math.PI, r=Math.hypot(x,y);
   if(Math.abs(a)<=45){ const R=fenceR(a)-3; return r>R?[x*R/r,y*R/r]:[x,y]; }
   const s=x<0?-1:1, e=(Math.abs(a)-45)*Math.PI/180, along=Math.max(0,Math.min(r*Math.cos(e), fenceR(45*s)-3)), off=Math.min(r*Math.sin(e), 36), c=Math.SQRT1_2;
   let X=s*c*along+s*c*off, Y=c*along-c*off; if(Y<-20){ Y=-20; } return [X,Y]; }   /* stays inside the fence and in foul ground (about 38 ft off the lines) */
-function planPlay(fl){ if(!fl.foul) return planPlay0(fl);
+let ROB=null; const LEAP_H=10.6;   /* DW 2026-11-26: top of a leap at the wall, glove up (about 7.5 ft standing reach plus a 3 ft jump; Claude's figure) */
+function leapFind(fl){ const S=fl.samples, L=fl.landed; let best=null;
+  for(const s of S){ if(s.t<0.6) continue; if(L && s.t>=L.t-0.02) break; if(fl.wallAt && s.t>=fl.wallAt.t) break;
+    const a=Math.atan2(s.x,s.y)*180/Math.PI; if(Math.abs(a)>45) continue; const R=fenceR(a), r=Math.hypot(s.x,s.y);
+    if(r<R-6) continue; if(r>R+1.8) break; if(s.h<=CATCH_H || s.h>LEAP_H) continue;
+    const k=Math.min(r,R-1.5)/(r||1), sx=s.x*k, sy=s.y*k;
+    for(const f of FIELDERS.list){ if(f.kind!=='OF') continue; const need=reactT(f)+coverTime(f,Math.max(0,Math.hypot(sx-f.x,sy-f.y)-1));
+      if(need<=s.t-0.75 && (!best || s.h<best.s.h)) best={f,s,stand:{x:sx,y:sy},need,over:r>R}; } }
+  return best; }
+function leapOdds(c){ const R=c.f.r||{}, fld=((R.field??R.fielding)??50)/99, rg=(R.range??50)/99, hi=(c.s.h-CATCH_H)/(LEAP_H-CATCH_H);
+  return Math.max(0.12, Math.min(0.85, 0.3+0.35*fld+0.2*rg-0.25*hi-(c.over?0.15:0))); }   /* Claude's figures: higher and over the fence is harder */
+function leapPlan(fl,c){ ROB=c; let P; try{ P=planPlay0(fl); }finally{ ROB=null; } if(!P || P.passive) return P;
+  P.leap=true; if(P.fielder && P.fielder.task){ P.fielder.task.tx=c.stand.x; P.fielder.task.ty=c.stand.y; } return P; }
+function planPlay(fl){ if(!fl.foul) return planLeap(fl);
   const L=fl.landed, air=fl.samples.filter(s=>s.t>=0.12 && s.h<=CATCH_H && (!L||s.t<L.t-0.02) && foulRoom(s));
   let can=false; for(const f of FIELDERS.list){ if(!(f.kind==='IF'||f.kind==='OF')) continue; for(const s of air){ if(reactT(f)+coverTime(f,Math.hypot(s.x-f.x,s.y-f.y)-REACH)<=s.t){ can=true; break; } } if(can) break; }
   if(can){ const P=planPlay0(Object.assign({},fl,{foul:false, samples:fl.samples.filter(s=>(!L||s.t<L.t-0.02) ? foulRoom(s) : false).concat(L?[]:[])}));
     if(P && !P.passive && P.how==='caught' && P.catch && P.catch.air && !P.bobble){ P.foulCatch=true; P.note=P.note.replace(/^Caught by/,'Caught in foul territory by'); return P; }
     for(const f of FIELDERS.list) f.task=null; for(const k in P||{}) if(P.diver) P.diver=null; }
   return planPlay0(fl); }
+function planLeap(fl){ const off=!!window.__derbyOn || window.__robOff===true;
+  if(fl.hr && !off){ const c=leapFind(fl); if(c && Math.random()<leapOdds(c)*0.9){ const keep={hr:fl.hr, wall:fl.wall, wallAt:fl.wallAt};
+      fl.hr=false; fl.wall=false; fl.wallAt=null; fl.robbed=true; const P=leapPlan(fl,c);
+      if(P && !P.passive && P.how==='caught'){ P.robbed=true; P.note=P.note.replace(/^Caught by (.*)\.$/, '$1 leaped at the wall and robbed a home run!'); return P; }
+      Object.assign(fl,keep); fl.robbed=false; for(const f of FIELDERS.list) f.task=null; } return planPlay0(fl); }
+  const P=planPlay0(fl); if(fl.hr || off) return P;
+  if(!(P && !P.passive && P.how==='caught' && P.catch && P.catch.air)){ const c=leapFind(fl); if(c && Math.random()<leapOdds(c)){ for(const f of FIELDERS.list) f.task=null;
+      const Q=leapPlan(fl,c); if(Q && !Q.passive && Q.how==='caught'){ Q.note=Q.note.replace(/^Caught by (.*)\.$/, 'Leaping catch at the wall by $1!'); return Q; }
+      for(const f of FIELDERS.list) f.task=null; return planPlay0(fl); } }
+  return P; }
 function planPlay0(fl){
   const S=fl.samples, L=fl.landed, P={t0:0, note:'', events:[], ballHeld:null, done:false};
   if(fl.foul){ P.passive=true; P.chase=true; P.foulLive=true;   /* nobody knows it is foul yet: the two nearest fielders go after it and the runners take off */
@@ -6781,6 +6804,7 @@ function planPlay0(fl){
         const d=Math.hypot(s.x-f.x,s.y-f.y), mg=d-REACH-coverDist(f,s.t-reactT(f)); if(mg<=diveReach(f) && (!m||mg<m.mg)) m={mg,t:s.t,x:s.x,y:s.y}; }
       if(m) dive[f.pos]=m; }
   }
+  if(ROB){ for(const k in best) delete best[k]; for(const k in dive) delete dive[k]; const s=ROB.s; best[ROB.f.pos]={t:s.t,x:s.x,y:s.y,h:s.h,need:ROB.need,back:false,air:true,leap:true}; }   /* DW 2026-11-26: his leap at the wall */
   const order=Object.entries(best).sort((a,b)=>a[1].t-b[1].t);
   let firstIF=order.find(([p])=>SPOTS[p][2]==='IF'); const firstOF=order.find(([p])=>SPOTS[p][2]==='OF');
   const byPos=p=>fs.find(f=>f.pos===p);
@@ -6811,7 +6835,7 @@ function planPlay0(fl){
     }
   }
   /* DW 2026-11-18: a catch he only just gets to (on the dead run, reaching) isn't automatic: sometimes it falls in front of him or off the glove tip */
-  if(how==='caught' && catchPt.air && fielder.kind!=='P' && !P.stab && L){
+  if(how==='caught' && catchPt.air && fielder.kind!=='P' && !P.stab && L && !catchPt.leap){
     const need=reactT(fielder)+coverTime(fielder,Math.hypot(catchPt.x-fielder.x,catchPt.y-fielder.y)-REACH), slack=catchPt.t-need;
     const fld=((fielder.r&&(fielder.r.field??fielder.r.fielding))??50)/99, pMiss= slack<0.45 ? (0.6-0.3*fld)*(1-Math.max(0,slack)/0.45) : 0;
     if(Math.random()<pMiss){ let g=null; for(const s of S){ if(s.t<L.t || s.h>CATCH_H) continue; const r=Math.hypot(s.x,s.y); if(r>fenceR(Math.atan2(s.x,s.y)*180/Math.PI)-2) continue;
@@ -6829,7 +6853,7 @@ function planPlay0(fl){
   P.fielder=fielder; P.catch=catchPt; P.how=how; setTimeout(()=>{ if(FIELDERS.play===P) ratePop(fielder,'Range'); },500);
   /* DW 2026-11-18: playing it off the wall: an outfielder can bobble the carom; his position defense decides how often */
   const offWall=fl.wallAt && catchPt && catchPt.t>=fl.wallAt.t && fielder.kind==='OF', wallErr=offWall ? 0.03+0.25*(1-((fielder.r&&(fielder.r.field??fielder.r.fielding))??50)/99)+(fl.wallAt.low?0.04:0) : 0;
-  if(fielder.kind!=='C' && Math.random()<errFlash(fielder,catchPt,(offWall?0:errChance(fielder, catchPt&&catchPt.air, !(catchPt&&catchPt.air) && fielder.kind!=='OF' && (how==='diving stop' || Math.hypot(catchPt.x-fielder.x,catchPt.y-fielder.y)>20 || (fl.ev||0)>=95)))+wallErr, offWall?'wall':null)){ if(!catchPt.air && !offWall){ const k=Math.random()<0.7?'ricochet':'whiff'; P.bobKind=k; P.bobble=99; P.defl={k}; if(how==='caught') how=P.how='fielded'; } else { const air=catchPt.air, ks=air?['juggle','drop']:['juggle','drop','kick'], k=ks[Math.floor(Math.random()*ks.length)];   /* DW 2026-11-18: show it: he juggles it, drops it and picks it up, or kicks it */
+  if(fielder.kind!=='C' && !catchPt.leap && Math.random()<errFlash(fielder,catchPt,(offWall?0:errChance(fielder, catchPt&&catchPt.air, !(catchPt&&catchPt.air) && fielder.kind!=='OF' && (how==='diving stop' || Math.hypot(catchPt.x-fielder.x,catchPt.y-fielder.y)>20 || (fl.ev||0)>=95)))+wallErr, offWall?'wall':null)){ if(!catchPt.air && !offWall){ const k=Math.random()<0.7?'ricochet':'whiff'; P.bobKind=k; P.bobble=99; P.defl={k}; if(how==='caught') how=P.how='fielded'; } else { const air=catchPt.air, ks=air?['juggle','drop']:['juggle','drop','kick'], k=ks[Math.floor(Math.random()*ks.length)];   /* DW 2026-11-18: show it: he juggles it, drops it and picks it up, or kicks it */
     P.bobKind=k; P.bobble=k==='juggle'?0.9+0.4*Math.random():k==='drop'?1.2+0.4*Math.random():1.5+0.5*Math.random(); P.bobDir=Math.random()*Math.PI*2; P.bobDist=k==='kick'?3+2.5*Math.random():1.2+1.5*Math.random(); if(how==='caught') how=P.how='fielded'; } }   // DW: Fielding/Hands ratings: now and then he bobbles it
   // where he is headed: run so he gets there right at the catch (or as soon as he can)
   fielder.task={type:'field', tx:catchPt.x, ty:catchPt.y, at:catchPt.t, dive: P.diver&&P.diver.f===fielder, half: !!(catchPt.back && fielder.kind==='IF')};
@@ -8274,7 +8298,7 @@ function playCalls(P,t){ const nm=P.name&&P.fielder?String(P.name[P.fielder.pos]
     liveCall(w.low ? (hard?pickOne(['Off the base of the wall, and it ricochets away!','It caroms off the bottom of the wall and kicks away!']):pickOne(['Off the base of the wall.','It rattles around at the base of the wall.']))
                    : (hard?pickOne(['Off the wall! It caroms back toward the infield!','Off the wall, and a big carom!']):pickOne(['Off the wall.','It hits off the wall.']))); }
   if(P.justMissed && !P.saidMiss && P.fl && P.fl.landed && t>=P.fl.landed.t){ P.saidMiss=true; liveCall(pickOne([`${nm} can't quite get there!`,`It falls in front of ${nm}!`,`Just out of reach of ${nm}!`])); }
-  if(!P.bobble && P.how==='caught' && P.catch && !P.saidCatch && t>=P.catch.t+0.1){ P.saidCatch=true; liveCall(pickOne([`Caught by ${nm}.`,`${nm} makes the catch.`,`And ${nm} has it.`])); }   /* DW 2026-11-22 */
+  if(!P.bobble && P.how==='caught' && P.catch && !P.saidCatch && t>=P.catch.t+0.1){ P.saidCatch=true; liveCall(P.robbed?pickOne([`${nm} goes up at the wall and takes a home run away!`,`Over the wall, and ${nm} brings it back! Home run robbed!`]):P.leap?pickOne([`${nm} leaps at the wall and makes the catch!`,`Leaping grab at the wall by ${nm}!`]):pickOne([`Caught by ${nm}.`,`${nm} makes the catch.`,`And ${nm} has it.`])); }   /* DW 2026-11-22 */
   if(P.bobble && P.catch && !P.saidBob && t>=P.catch.t+0.15){ P.saidBob=true; if(P.defl) return;
     liveCall(P.bobKind==='drop'?((P.campT!=null && P.catch.t-P.campT>=0.5 && P.fl && (P.fl.la||0)>=22)?pickOne([`${nm} drops it!`,`And ${nm} drops the ball!`]):pickOne(['Off his glove!',`${nm} almost brought it in!`,`It's off the glove of ${nm}!`])):P.bobKind==='kick'?pickOne([`${nm} kicks it!`,`It's kicked away by ${nm}!`]):pickOne([`${nm} bobbles it!`,`${nm} juggles it!`])); } }
 function pickOne(a){ return a[Math.floor(Math.random()*a.length)]; }
@@ -8755,7 +8779,7 @@ RUN3D.reskin=function(){ this.skinKey=uniKey3D(); try{
   for(const I of this.inst.values()) put(I); for(const I of (this.spare||[])) put(I);
   }catch(e){ console.error('3D reskin',e); } };
 window.__DW_MOVES=window.__DW_MOVES||{};   /* DW's own moves, filmed in his driveway: players/dw_moves.js */
-RUN3D.MOVE={ dw_pitcher_stab:{pick:2.5,hold:3.93,s0:2.0,waist:3.4}, dw_backhand_reach:{pick:1.6,hold:2.44,s0:0.5,waist:2.1}, dw_grounder_straight_on:{pick:2.8,hold:4.44,s0:1.7,waist:3.6}, infield_throw:{pick:0.77,hold:1.02,rel:1.57,yaw:1.61}, catcher_throw_to_base:{pick:0.55,hold:1.0,rel:1.57,yaw:0.50}, outfield_catch_high_ball:{pick:5.95,hold:6.45,lead:1.3,gnd:1}, failed_catch:{pick:2.17,hold:3.9,lead:1.2,gnd:1}, infield_stand_and_throw:{rel:1.73,yaw:1.10} };
+RUN3D.MOVE={ dw_hr_rob_1:{pick:1.0,hold:2.9,s0:0.3,waist:2.1}, dw_pitcher_stab:{pick:2.5,hold:3.93,s0:2.0,waist:3.4}, dw_backhand_reach:{pick:1.6,hold:2.44,s0:0.5,waist:2.1}, dw_grounder_straight_on:{pick:2.8,hold:4.44,s0:1.7,waist:3.6}, infield_throw:{pick:0.77,hold:1.02,rel:1.57,yaw:1.61}, catcher_throw_to_base:{pick:0.55,hold:1.0,rel:1.57,yaw:0.50}, outfield_catch_high_ball:{pick:5.95,hold:6.45,lead:1.3,gnd:1}, failed_catch:{pick:2.17,hold:3.9,lead:1.2,gnd:1}, infield_stand_and_throw:{rel:1.73,yaw:1.10} };
 RUN3D.fielder=function(f,I,dt,P){
   if(!f.grp.visible){ I.root.visible=false; I.last=null; I.h=null; I.v=0; I.act=null; return; }
   f.mesh.visible=false; I.root.visible=true;
@@ -8771,9 +8795,10 @@ RUN3D.fielder=function(f,I,dt,P){
       let st=null; if(!air && !bob && f.kind==='IF' && this.mv && I.p0 && !T.dive && window.__dwGround!==false){ const L0=Math.hypot(I.p0[0],I.p0[1])||1, lat=Math.abs(I.p0[0]*T.ty-I.p0[1]*T.tx)/(Math.hypot(T.tx,T.ty)||1), sd=((T.tx-I.p0[0])*(-I.p0[1])+(T.ty-I.p0[1])*I.p0[0])/L0;   /* sd: how far to his right (backhand side) */
         if(lat<4 && this.mv.dw_grounder_straight_on) st='dw_grounder_straight_on'; else if(sd>3 && this.mv.dw_backhand_reach) st='dw_backhand_reach'; }   /* DW 2026-11-25: his own moves */
       if(!st && f.kind==='P' && P.stab && !bob && (P.catch.h||0)>=4.3 && this.mv && this.mv.dw_pitcher_stab && I.p0 && window.__dwGround!==false){ const L0=Math.hypot(I.p0[0],I.p0[1])||1, sd=((T.tx-I.p0[0])*(-I.p0[1])+(T.ty-I.p0[1])*I.p0[0])/L0; if(sd>0.3 && sd<3.2) st='dw_pitcher_stab'; }   /* DW 2026-11-25: high one at the pitcher, his throwing-hand side */   /* DW 2026-11-25: the ball's line runs right at where he stood (he may still charge it) */
+      if(!st && air && !bob && f.kind==='OF' && P.catch.leap && this.mv && this.mv.dw_hr_rob_1) st='dw_hr_rob_1';   /* DW 2026-11-26: HR rob 1 */
       const clip=st?st:air?(bob?'failed_catch':'outfield_catch_high_ball'):(hard?'catcher_throw_to_base':'infield_throw'), m=M[clip], at=P.catch.t+(bob&&!air?P.bobble:0), ttc=at-now, lead=m.lead||m.pick-0.12;
-      const dwGo=st && (st==='dw_pitcher_stab' ? ttc>0.04 : ttc>0.3 && Math.hypot(f.x-T.tx,f.y-T.ty)<=REACH*0.6+1);   /* he gets set first, then his own move from that frame on, no fade */
-      if(dwGo){ start(clip,Math.max(m.s0,m.pick-ttc),'catch',home); I.act.dw=Math.min(ttc,m.pick-m.s0); I.act.ts=I.act.t; I.wa=1; try{ this.dwGlove(I,m); }catch(e){} window.__dwUsed=(window.__dwUsed|0)+1; I.got=true; }
+      const dwGo=st && (st==='dw_hr_rob_1' ? ttc>0.04 && Math.hypot(f.x-T.tx,f.y-T.ty)<=8 : st==='dw_pitcher_stab' ? ttc>0.04 : ttc>0.3 && Math.hypot(f.x-T.tx,f.y-T.ty)<=REACH*0.6+1);   /* he gets set first, then his own move from that frame on, no fade */
+      if(dwGo){ start(clip,Math.max(m.s0,m.pick-ttc),'catch',home); I.act.dw=Math.min(ttc,m.pick-m.s0); I.act.ts=I.act.t; I.wa=1; try{ this.dwGlove(I,m); }catch(e){} if(clip==='dw_hr_rob_1' && m.gh!=null) I.act.up=Math.max(0,Math.min(3.3,(P.catch.h||0)-m.gh*I.root.scale.y)); window.__dwUsed=(window.__dwUsed|0)+1; I.got=true; }
       else if(!(st && ttc>0.3) && ttc<(m.lead||m.pick-0.12) && ttc>-0.25 && Math.hypot(f.x-T.tx,f.y-T.ty)<9){ if(st){ const c2='infield_throw', m2=M[c2]; if(ttc<m2.pick-0.12){ start(c2,m2.pick-ttc,'catch',home); I.got=true; } } else { start(clip,m.pick-ttc,'catch',home); I.got=true; } } }
     /* the throw: the release in the move lands on the game's release */
     const dwW=I.act && I.act.dw!=null && I.act.mode==='catch' && I.act.t<M[I.act.clip].waist && P.pending && P.pending.at-now>0.3;
@@ -8804,9 +8829,10 @@ RUN3D.fielder=function(f,I,dt,P){
   /* these two moves drift up off the ground in the recording: keep his lower foot on the grass */
   { let lift=0; if(I.cur && I.wa>0.02){ const cn=I.cur.getClip().name.replace(/^mc_/,''), m=M[cn]; if(m && m.gnd){ I.root.updateMatrixWorld(true); const V=this._v||(this._v=new THREE.Vector3()), ly=I.b.LeftToeBase.getWorldPosition(V).y, ry=I.b.RightToeBase.getWorldPosition(V).y; lift=Math.max(0,Math.min(ly,ry)-0.25*sc)*I.wa; } }
     I.lift=(I.lift||0)+(lift-(I.lift||0))*Math.min(1,dt*20); if(I.lift>0.01) I.root.position.y-=I.lift; }
+  { const A=I.act; if(A && A.up>0 && A.clip==='dw_hr_rob_1'){ const u=(A.t-M.dw_hr_rob_1.pick)/0.42; if(Math.abs(u)<1) I.root.position.y+=A.up*(1-u*u); } }   /* DW 2026-11-26: the rest of the leap, on the same timing as his own jump */
   try{ this.footFlat(I); }catch(e){} };
 RUN3D.dwGlove=function(I,m){ if(m.gl || !I.gloveGrp) return; const A=I.act, T=THREE; for(const k in I.acts) I.acts[k].setEffectiveWeight(I.acts[k]===A.a?1:0); I.aRun.setEffectiveWeight(0); I.aStand.setEffectiveWeight(0);
-  A.a.time=m.pick; I.mixer.update(0); I.root.updateMatrixWorld(true); const p=I.gloveGrp.getWorldPosition(new T.Vector3()); I.root.worldToLocal(p); m.gl=[p.x, p.z]; A.a.time=A.t; I.mixer.update(0); };   /* the glove at the catch frame, in his own body's frame */
+  A.a.time=m.pick; I.mixer.update(0); I.root.updateMatrixWorld(true); const p=I.gloveGrp.getWorldPosition(new T.Vector3()); I.root.worldToLocal(p); m.gl=[p.x, p.z]; m.gh=p.y; A.a.time=A.t; I.mixer.update(0); };   /* the glove at the catch frame, in his own body's frame */
 RUN3D.footFlat=function(I){ const T=THREE, K=this._ff||(this._ff={a:new T.Vector3(),b:new T.Vector3(),c:new T.Vector3(),d:new T.Vector3(),q:new T.Quaternion(),p:new T.Quaternion(),w:new T.Quaternion()});
   const turn=(bone,from,to)=>{ K.q.setFromUnitVectors(from.normalize(),to.normalize()); bone.parent.getWorldQuaternion(K.p); bone.getWorldQuaternion(K.w); K.q.multiply(K.w); bone.quaternion.copy(K.p.invert().multiply(K.q)); bone.updateMatrixWorld(true); };
   I.root.updateMatrixWorld(true); const g=I.root.getWorldPosition(K.d).y;
@@ -10339,7 +10365,7 @@ function frameBody(now){
         else { const v=W(x,y,Math.max(0.55,h)).project(camera); foulGo = t>0.25 && (Math.abs(v.x)>1.02 || Math.abs(v.y)>1.02 || v.z>1) || (flight.landed && t>=flight.landed.t+0.3); }
         if(foulGo && PL && PL.foulLive && !PL.saidFoul){ PL.saidFoul=true; liveCall('@FOUL:'+(flight.landed&&flight.landed.fb?'field':'stands')); }   /* DW 2026-11-24: straight back to the batter */
       }catch(e){} }
-    if(foulGo || (flight.bp && flight.bp.endAt!=null && t>=flight.bp.endAt) || (t>endT+RESULT_HOLD && (live || done || flight.hop2!=null)) || t>(PL&&(PL.hrLive||(PL.offBase&&t-PL.offBase<1))?32:16)){ window.__playLive=false; if(PL) PL.ended=true; try{ errList(); }catch(e){} try{ if(flight && ((flight.hr && !flight.foul) || window.__derbyOn)) leaveHrBall(flight); }catch(e){} const fin=flight; const fnote=PL&&!PL.passive?(PL.note+(PL.run&&PL.run.res?tagSay(ROSTER._batter.name,PL.run,PL):'')+(PL.runners?PL.runners.filter(r=>!r.batter).map(r=>r.out?tagSay(r.name,r,PL):(r.scored||r.s>=4)?' '+r.name+' scored.':Math.round(r.s)!==r.orig?' '+r.name+' to '+['home','1st','2nd','3rd'][Math.round(r.s)]+'.':'').join(''):'')+(PL.throws&&PL.throws.length?' '+PL.throws.map(k=>k==='cut'?(PL.cutNote||'Cut off'):k.startsWith('step')?'Stepped on '+BASES[k.slice(4)][2]+' himself':PL.tossedTo===k?'Tossed to '+NAME.P+' covering '+BASES[k][2]:'Thrown to '+BASES[k][2]+', '+NAME[(PL.cover[k]||PITCHER_SPOT).pos]+' covering').join(', then ')+'.':' He held the ball.')):''; setTimeout(()=>window.FIELD3D.onDone && window.FIELD3D.onDone(Object.assign(summary(fin),(PL&&!PL.passive&&PL.how==='caught'&&!PL.bobble)?{wall:false,wallBounce:false,hop:null}:{},{bp:(fin&&fin.bp)||null, def:defResult(PL), fielding:fnote, caught:!!(PL&&!PL.passive&&PL.how==='caught'&&!PL.bobble), outAt1st:!!(PL&&PL.run&&PL.run.res==='out at 1st'), runners:runnersResult(PL), safeAt1st:!!(PL&&PL.run&&PL.run.res==='safe at 1st'), caughtBy:PL&&PL.fielder?NAME[PL.fielder.pos]:''}, (PL&&!PL.passive&&PL.foulCatch&&PL.how==='caught'&&!PL.bobble)?{foul:false, foulCatch:true}:{})),0); try{ if(window.__drillOn && PL && !PL.passive){ const B=(PL.runners||[]).find(r=>r.batter); window.__drillInfo={pos:PL.fielder&&PL.fielder.pos, kind:PL.fielder&&PL.fielder.kind, how:PL.how, dove:!!(PL.diver&&PL.diver.f===PL.fielder), diveMiss:PL.diver&&PL.diver.f!==PL.fielder?PL.diver.f.pos:'', bob:PL.bobKind||'', wild:PL.wildKind||'', e:(defResult(PL)||{}).e||[], t1B:PL.t1B, b1T:PL.b1T, res:B?(B.out?'OUT':(B.s>=1?'SAFE':'')):'', throws:(PL.throws||[]).slice(), catchT:PL.catch&&PL.catch.t}; } }catch(e){}   /* DW 2026-11-25 */
+    if(foulGo || (flight.bp && flight.bp.endAt!=null && t>=flight.bp.endAt) || (t>endT+RESULT_HOLD && (live || done || flight.hop2!=null)) || t>(PL&&(PL.hrLive||(PL.offBase&&t-PL.offBase<1))?32:16)){ window.__playLive=false; if(PL) PL.ended=true; try{ errList(); }catch(e){} try{ if(flight && ((flight.hr && !flight.foul) || window.__derbyOn)) leaveHrBall(flight); }catch(e){} const fin=flight; const fnote=PL&&!PL.passive?(PL.note+(PL.run&&PL.run.res?tagSay(ROSTER._batter.name,PL.run,PL):'')+(PL.runners?PL.runners.filter(r=>!r.batter).map(r=>r.out?tagSay(r.name,r,PL):(r.scored||r.s>=4)?' '+r.name+' scored.':Math.round(r.s)!==r.orig?' '+r.name+' to '+['home','1st','2nd','3rd'][Math.round(r.s)]+'.':'').join(''):'')+(PL.throws&&PL.throws.length?' '+PL.throws.map(k=>k==='cut'?(PL.cutNote||'Cut off'):k.startsWith('step')?'Stepped on '+BASES[k.slice(4)][2]+' himself':PL.tossedTo===k?'Tossed to '+NAME.P+' covering '+BASES[k][2]:'Thrown to '+BASES[k][2]+', '+NAME[(PL.cover[k]||PITCHER_SPOT).pos]+' covering').join(', then ')+'.':' He held the ball.')):''; setTimeout(()=>window.FIELD3D.onDone && window.FIELD3D.onDone(Object.assign(summary(fin),(PL&&!PL.passive&&PL.how==='caught'&&!PL.bobble)?{wall:false,wallBounce:false,hop:null}:{},{bp:(fin&&fin.bp)||null, def:defResult(PL), fielding:fnote, caught:!!(PL&&!PL.passive&&PL.how==='caught'&&!PL.bobble), outAt1st:!!(PL&&PL.run&&PL.run.res==='out at 1st'), runners:runnersResult(PL), safeAt1st:!!(PL&&PL.run&&PL.run.res==='safe at 1st'), caughtBy:PL&&PL.fielder?NAME[PL.fielder.pos]:'', robbed:!!(PL&&PL.robbed), leap:!!(PL&&PL.leap)}, (PL&&!PL.passive&&PL.foulCatch&&PL.how==='caught'&&!PL.bobble)?{foul:false, foulCatch:true}:{})),0); try{ if(window.__drillOn && PL && !PL.passive){ const B=(PL.runners||[]).find(r=>r.batter); window.__drillInfo={pos:PL.fielder&&PL.fielder.pos, kind:PL.fielder&&PL.fielder.kind, how:PL.how, dove:!!(PL.diver&&PL.diver.f===PL.fielder), diveMiss:PL.diver&&PL.diver.f!==PL.fielder?PL.diver.f.pos:'', bob:PL.bobKind||'', wild:PL.wildKind||'', e:(defResult(PL)||{}).e||[], t1B:PL.t1B, b1T:PL.b1T, res:B?(B.out?'OUT':(B.s>=1?'SAFE':'')):'', throws:(PL.throws||[]).slice(), catchT:PL.catch&&PL.catch.t}; } }catch(e){}   /* DW 2026-11-25 */
     FIELDERS.play=null; setTimeout(()=>{ if(!FIELDERS.play) resetFielders(); }, EMBED?0:1500); flight=null; ball.visible=false; ballShadow.visible=false; trailPts=[]; trailPts=[]; trail.geometry.setDrawRange(0,0); }
   } else resultShown=false;
   updateFlag(now,dt);
